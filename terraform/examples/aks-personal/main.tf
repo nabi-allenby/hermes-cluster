@@ -87,6 +87,9 @@ module "platform" {
     var.extra_values,
   )
   # Sessions land on the tainted Spot pool; connector + LM stay on system.
+  # imagePullSecrets: create the registry secret out of band when the agent
+  # image lives in a private registry (e.g. kubectl create secret
+  # docker-registry acr-pull ... -n hermes).
   values_yaml = [<<-YAML
     session:
       nodeSelector:
@@ -96,6 +99,8 @@ module "platform" {
           operator: Equal
           value: spot
           effect: NoSchedule
+      imagePullSecrets:
+        - name: acr-pull
   YAML
   ]
 }
