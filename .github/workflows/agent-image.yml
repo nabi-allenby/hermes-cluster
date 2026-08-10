@@ -30,11 +30,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - id: tag
+        # actions/checkout needs a full SHA; images keep the familiar short one.
+        run: echo "short=$(echo '${{ github.event.inputs.hermes_ref }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/${{ github.repository }}/hermes-agent:${{ github.event.inputs.hermes_ref }}
+          tags: |
+            ghcr.io/${{ github.repository }}/hermes-agent:${{ github.event.inputs.hermes_ref }}
+            ghcr.io/${{ github.repository }}/hermes-agent:${{ steps.tag.outputs.short }}
           cache-from: type=gha,scope=agent-image
           cache-to: type=gha,scope=agent-image,mode=max
