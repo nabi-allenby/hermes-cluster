@@ -39,7 +39,7 @@ consumes its published image over HTTP, zero code coupling.
 ## 2. Repo map
 
 ```
-hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (PUBLIC library)
+hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (library repo, private for now)
 ├── README.md                          quickstart, env table, pins
 ├── HANDOVER.md                        this file
 ├── Makefile                           build/test/e2e/minikube targets
@@ -308,10 +308,13 @@ moved to the private instancing repo
 tofu state (28 resources — the running AKS deployment is managed from
 there now). Git history here scanned clean for secrets (22 commits).
 
-Repo governance (2026-08-11): **this repo is PUBLIC** with `main`
-protected (no force-push/deletion, CI `test` required; direct pushes
-allowed). hermes-private-cluster stays private and **deliberately
-unprotected** — GitHub Free has no protection on private repos; accepted.
+Repo governance (2026-08-11): both repos are **private**. Branch
+protection rules exist on this repo's `main` (no force-push/deletion, CI
+`test` required) but are **dormant** — GitHub Free doesn't enforce
+protection on private repos; they reactivate if the repo goes public.
+hermes-private-cluster: private, unprotected, accepted. The repo was
+briefly public on 2026-08-11 and reverted the same day; the "public
+open-source library" step is deferred until the user chooses to flip it.
 
 **Not done:**
 
