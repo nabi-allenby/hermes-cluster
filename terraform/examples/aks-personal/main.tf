@@ -130,8 +130,10 @@ variable "seed_dir" {
 }
 
 variable "chart" {
+  # In-repo chart by default; switch to the OCI ref once the chart is
+  # published: oci://ghcr.io/nabi-allenby/hermes-cluster/hermes-platform
   type    = string
-  default = "oci://ghcr.io/nabi-allenby/hermes-cluster/hermes-platform"
+  default = "../../../charts/hermes-platform"
 }
 
 variable "agent_image" {
