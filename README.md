@@ -1,21 +1,24 @@
 # hermes-cluster
 
-Hermes-as-a-Service on Kubernetes: run personal [Hermes agents](https://github.com/NousResearch/hermes-agent)
-as managed, persistent, scale-to-zero sessions. This repo builds the platform's
-**lifecycle-manager** — a small, stateless Go service that orchestrates agent
-sessions as [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox)
-`SandboxClaim`s — plus the Helm chart and Terraform that will ship around it.
+Personal [Hermes agents](https://github.com/NousResearch/hermes-agent) as
+managed, persistent, **scale-to-zero** sessions on Kubernetes. One session =
+one stateful pod with its whole home directory on a PVC — suspended to
+disk-only cost when idle, woken in seconds by an incoming Discord message.
 
-The heavy lifting is delegated:
+This repo is the platform library:
 
-- **Session lifecycle** — agent-sandbox (adopted unmodified, pinned): one
-  stateful pod per session, PVC-backed home directory, `operatingMode`
-  suspend/resume, warm pools, cascade deletion.
-- **Messaging** — [hermes-relay-connector](https://github.com/nabi-allenby/hermes-relay-connector)
-  (external pinned image): owns the Discord bot token, buffers messages
-  durably for suspended agents, pokes this service's `/wake/{session}` when
-  buffered work arrives. **Optional** — the lifecycle-manager is a generic
-  session orchestrator without it.
+- **lifecycle-manager** — a small, stateless Go service: session CRUD over
+  HTTP, `/wake`, idle + TTL sweepers, connector integration, reconcile
+  report. Image: `ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager`.
+- **hermes-platform chart** — the whole platform as one Helm release:
+  `oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform`.
+
+The hard problems are delegated to pinned externals:
+[kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox)
+(session pods, PVC survival, suspend/resume) and
+[hermes-relay-connector](https://github.com/nabi-allenby/hermes-relay-connector)
+(Discord token custody, durable buffering, wake pokes — optional; without it
+this is a generic session orchestrator).
 
 ```
 Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manager
@@ -25,75 +28,79 @@ Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manag
             session pods (hermes gateway, PVC home)   Kubernetes API + agent-sandbox
 ```
 
-## Status
+## Proven, with numbers
 
-- ✅ lifecycle-manager: session CRUD API, `/wake`, idle + TTL sweepers,
-  connector integration (provision / activity / deprovision / routes),
-  reconcile report. Unit + e2e tested (minikube).
-- ✅ P-M1 headless Hermes pod recipe: the real hermes-agent as a sandbox
-  session — PVC home, first-boot seed, boot-time self-provision, graceful
-  suspend, re-auth on resume ([docs/p-m1.md](docs/p-m1.md), `make p-m1`).
-- ✅ **P-AC1 passed live** (`hack/p-ac1/`): real Discord DM → in-cluster
-  agent replies; idle → suspended to disk-only; DM while suspended →
-  buffered → wake poke → resume → reply. Decommission cascades in seconds.
-- ✅ Helm chart (`charts/hermes-platform`) — the whole platform as one
-  release, lifecycle drill verified on minikube; Terraform `aks` + `platform`
-  modules and the `aks-personal` example (`terraform/`, validate-clean).
-- ✅ **P-AC4 passed live on AKS** ([docs/p-ac4.md](docs/p-ac4.md)): terraform +
-  two secrets + chart → Discord conversation, idle suspend, wake-on-message
-  (message→connected ~22 s; managed-csi attach ≈ 15 s — §5.2 measured).
-- ✅ **Library split**: this repo is the plug-&-play library — the
-  lifecycle-manager (GHCR, semver) and the `hermes-platform` chart
-  (`oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform`).
-  Agent image: official `nousresearch/hermes-agent` (Docker Hub, multi-arch).
-  Terraform wiring lives in the private instancing repo
-  (`hermes-private-cluster`).
-- ⬜ Package/repo visibility flips (org admin), P-M4 (Spot eviction drill,
-  EKS module) — next.
+Every acceptance criterion has passed **live** (full run records in
+[docs/](docs/)):
 
-## Quickstart (minikube)
+| What | Measured |
+|---|---|
+| Discord DM → agent reply, agent pod on AKS | end-to-end conversation ([docs/p-ac4.md](docs/p-ac4.md)) |
+| Idle → suspended to disk-only | 8 s (graceful `going_idle`) |
+| DM while suspended → wake → connected | **~22 s** on AKS (managed-csi attach ≈ 15 s); ~6 s on minikube |
+| Decommission (`DELETE`) → connector purge + pod/PVC cascade | ~6 s |
+| Suspended-session density | 11 sessions on a node that runs 6 |
+
+## Install (Helm)
+
+Prereqs: agent-sandbox v0.5.4 CRDs + controller installed, and two Secrets
+you create out of band (see [charts/README.md](charts/README.md) — seed home
+with the LLM key, Discord bot token).
 
 ```bash
-make minikube-up      # start minikube + install agent-sandbox v0.5.4
-make p-m0             # sanity: claim → suspend → PVC survives → resume
-kubectl apply -f hack/e2e/template.yaml   # a SandboxTemplate + SandboxWarmPool
-HLM_WARM_POOL=e2e-pool make run-local     # run the lifecycle-manager locally
+helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform \
+  --version 0.1.1 -n hermes --create-namespace
 ```
 
-Then:
+Then create a session and talk to your bot:
 
 ```bash
-curl -X POST localhost:8080/v1/sessions -d '{"id":"my-agent"}'
-curl localhost:8080/v1/sessions/my-agent          # state: Waking → Ready
-curl localhost:8080/wake/my-agent                 # idempotent resume
-curl -X DELETE localhost:8080/v1/sessions/my-agent
+kubectl -n hermes port-forward svc/hermes-hlm 8080:8080 &
+curl -X POST localhost:8080/v1/sessions -H 'Content-Type: application/json' \
+  -d '{"connector":{}}'
 ```
 
-Full API: [docs/api.md](docs/api.md).
+Full HTTP API: [docs/api.md](docs/api.md). Agent image: official
+multi-arch [`nousresearch/hermes-agent`](https://hub.docker.com/r/nousresearch/hermes-agent)
+(pin a release tag, never `latest`).
+
+## Local development (minikube)
+
+```bash
+make minikube-up      # minikube + agent-sandbox v0.5.4
+make p-m0             # substrate drill: claim → suspend → PVC survives → resume
+make p-m1             # full-agent drill: boot → connect → suspend → wake → drain
+make test             # unit suite
+make e2e              # e2e tiers 1-2 vs minikube (+docker)
+```
+
+Or run the lifecycle-manager bare against any kubeconfig:
+
+```bash
+kubectl apply -f hack/e2e/template.yaml
+HLM_WARM_POOL=e2e-pool make run-local
+```
 
 ## How it works
 
-One session = one `SandboxClaim` = one `Sandbox` = one PVC (the agent's entire
-home). The lifecycle-manager is **stateless**: per-session knobs live as
-annotations on the claim; live state is derived on read from the sandbox
-(`Running`+Ready ⇒ `Ready`, `Suspended`+confirmed ⇒ `Suspended`, …) and never
-stored. Restarting it loses nothing.
+One session = one `SandboxClaim` = one `Sandbox` = one PVC. The
+lifecycle-manager is **stateless**: per-session knobs are claim annotations;
+live state is derived on read and never stored; restarts lose nothing.
 
 Two sweepers are the only writers of lifecycle intent:
 
-- **Idle sweeper** (connector mode only): polls per-instance activity from the
-  connector admin API and suspends sessions that are Ready, quiet past their
-  idle timeout, with no turn in flight and nothing buffered. Unknown activity
-  (connector restart) is never treated as idle.
+- **Idle sweeper** (connector mode only): suspends sessions that are Ready,
+  quiet past their idle timeout, with no turn in flight and nothing
+  buffered. Unknown activity (connector restart) is never treated as idle.
 - **TTL sweeper**: decommissions expired sessions through the same single
-  code path as `DELETE /v1/sessions/{id}` — connector purge first, then claim
-  deletion (cascades pod + PVC). `spec.lifecycle` on claims is never used.
+  code path as `DELETE /v1/sessions/{id}` — connector purge first, then
+  claim deletion (cascades pod + PVC).
 
-The wake loop (with the connector): message to a suspended agent → connector
-buffers durably → pokes `GET /wake/{id}` (payload-free, unauthenticated,
-cooldown-limited) → lifecycle-manager patches `operatingMode: Running` → pod
-recreates on the same PVC → gateway re-dials → backlog drains in order.
-A lost poke degrades to delivery-on-next-resume, never loss.
+The wake loop: message to a suspended agent → connector buffers durably →
+pokes `GET /wake/{id}` → lifecycle-manager patches
+`operatingMode: Running` → pod recreates on the same PVC → gateway
+re-dials → backlog drains in order. A lost poke degrades to
+delivery-on-next-resume, never loss.
 
 ## Configuration (env)
 
@@ -101,52 +108,45 @@ A lost poke degrades to delivery-on-next-resume, never loss.
 |---|---|---|
 | `HLM_LISTEN` | `:8080` | HTTP listener |
 | `HLM_NAMESPACE` | in-cluster / `default` | namespace for claims |
-| `HLM_WARM_POOL` | **required** | default `SandboxWarmPool` for new sessions (v1beta1 claims reference pools; a `replicas: 0` pool = cold-start everything) |
+| `HLM_WARM_POOL` | **required** | default `SandboxWarmPool` for new sessions (a `replicas: 0` pool = cold-start everything) |
 | `HLM_SANDBOX_API_GROUP` / `HLM_SANDBOX_EXT_API_GROUP` / `HLM_SANDBOX_API_VERSION` | `agents.x-k8s.io` / `extensions.agents.x-k8s.io` / `v1beta1` | CRD pin knobs |
 | `HLM_SWEEP_INTERVAL` | `60s` | sweep cadence (jittered) |
 | `HLM_IDLE_TIMEOUT` | `30m` | global idle timeout; `0` disables |
 | `HLM_TTL` | `0` | global session TTL; `0` disables |
 | `HLM_API_TOKEN(_FILE)` | unset | optional bearer on `/v1/*` (never `/wake`/health) |
 | `HLM_CONNECTOR_ENABLED` | `false` | enable the relay-connector integration |
-| `HLM_CONNECTOR_URL` | — | connector **admin-plane** base URL (no `/healthz` there when `HRC_ADMIN_LISTEN` splits planes; reachability is probed via the unauthenticated `/metrics`) |
+| `HLM_CONNECTOR_URL` | — | connector **admin-plane** base URL (reachability probed via unauthenticated `/metrics`) |
 | `HLM_CONNECTOR_ADMIN_TOKEN(_FILE)` | — | bearer for `/admin/v1/*` |
-| `HLM_CONNECTOR_PROVISION_TOKEN(_FILE)` | — | bearer for `POST /relay/provision`; unset ⇒ sessions rely on agent self-provision |
+| `HLM_CONNECTOR_PROVISION_TOKEN(_FILE)` | — | bearer for `POST /relay/provision`; unset ⇒ agent self-provision only |
 | `HLM_CONNECTOR_BOT_ID` / `HLM_CONNECTOR_PLATFORM` | — / `discord` | provision parameters |
 | `HLM_WAKE_BASE_URL` | — | base for registered wake URLs (`<base>/wake/<id>`) |
 | `HLM_ORPHAN_POLICY` | `report` | claims↔instances drift is reported in `/status`, never auto-deleted |
 | `HLM_LOG_LEVEL` / `HLM_LOG_FORMAT` | `info` / `json` | logging |
 
-Durations accept Go syntax (`30m`) or bare seconds (`1800`). Every `*_FILE`
-variant wins over its plain twin. Local runs use `KUBECONFIG`/`~/.kube/config`.
+Durations accept Go syntax (`30m`) or bare seconds (`1800`). `*_FILE`
+variants win over their plain twins.
 
-Connector-client discipline (encoded in `internal/connector`): no retries
-anywhere — the connector throttles 10 auth failures per source IP per 60 s
-with 429s that hit good credentials too, so any 429 short-circuits all calls
-for 65 s and the sweep cadence is the retry loop.
+Connector-client discipline (encoded in `internal/connector`): **no retries
+anywhere** — the connector throttles auth failures per source IP and its
+429s hit good credentials too; any 429 short-circuits all calls for 65 s and
+the sweep cadence is the retry loop.
 
-## Development
+## Repo map
 
-```bash
-make test        # unit tests
-make e2e         # e2e vs minikube (+ docker for the connector tier)
-make image       # ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager
-```
-
-e2e tiers: **0** — agent-sandbox suspend/resume substrate (`hack/p-m0/run.sh`);
-**1** — session CRUD/wake/TTL/statelessness, no connector; **2** — real
-connector container, agentless full wake loop via its echo API (provision →
-suspend → buffered echo message → wake poke → resume), deprovision purge,
-orphan reporting. Tier 2 needs the connector's full admin surface (v0.2.0+):
-it picks `$HLM_E2E_CONNECTOR_IMAGE`, a locally built `hrc:e2e`, or the GHCR
-`v0.2.0` image, and skips when none is available.
+| Path | What |
+|---|---|
+| `lifecycle-manager/` | the Go service (unit + e2e tests) |
+| `charts/hermes-platform/` | the platform chart (published as OCI on `chart-v*` tags) |
+| `docs/` | HTTP API + substrate facts + measured run records |
+| `hack/` | minikube bootstrap and the reproducible drills (p-m0, p-m1, p-ac1) |
+| `HANDOVER.md` | full engineering log: decisions, surprises, open items |
 
 ## Pins
 
-| Dependency | Version | Where |
+| Dependency | Version | Notes |
 |---|---|---|
-| agent-sandbox | `v0.5.4` | `hack/minikube-up.sh` (`AGENT_SANDBOX_VERSION`); facts in [docs/p-m0.md](docs/p-m0.md) |
-| hermes-relay-connector | `v0.2.0` | full admin surface (activity, PATCH, routes CRUD, deprovision purge) + non-root image, graceful SIGTERM, `/metrics`; contract notes in `internal/connector` |
-| hermes-agent | `@244d296` | consumed indirectly via the connector's conformance gate |
+| agent-sandbox | `v0.5.4` | facts + measured timings in [docs/p-m0.md](docs/p-m0.md); bump ⇒ re-verify that file |
+| hermes-relay-connector | `0.2.0` | public on GHCR; contract notes in `internal/connector` |
+| hermes-agent | `v2026.8.3` (≈ `@244d296`) | official Docker Hub image, multi-arch; relay contract conformance-verified at the pin |
 
-Design: the definitive `hermes-cluster` design doc (external); connector
-internals live in the hermes-relay-connector repo only.
+License: Apache-2.0.

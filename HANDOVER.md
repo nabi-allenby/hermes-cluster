@@ -43,8 +43,8 @@ hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (l
 ├── README.md                          quickstart, env table, pins
 ├── HANDOVER.md                        this file
 ├── Makefile                           build/test/e2e/minikube targets
-├── .github/workflows/ci.yml           vet+unit, multi-arch image→GHCR, minikube e2e
-├── charts/  terraform/                placeholders (P-M3/P-M4), READMEs describe intent
+├── .github/workflows/                 ci.yml (vet+unit, image→GHCR, minikube e2e), chart-release.yml
+├── charts/hermes-platform/            the platform chart (OCI releases on chart-v* tags)
 ├── docs/
 │   ├── api.md                         full HTTP API reference
 │   ├── p-m0.md                        ⭐ agent-sandbox substrate facts + measured timings

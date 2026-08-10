@@ -9,8 +9,9 @@ echo-buffer → wake <2 s → drain → decommission cascade).
 
 ## Prerequisites (the chart references, never creates)
 
-1. **agent-sandbox CRDs + controller** (pinned v0.5.4) — installed by the
-   terraform `platform` module or `hack/minikube-up.sh`.
+1. **agent-sandbox CRDs + controller** (pinned v0.5.4) — install the
+   upstream release manifest (`hack/minikube-up.sh` does it for minikube;
+   see docs/p-m0.md for the manifest URL).
 2. **Secret `hermes-home-seed`** — first-boot `HERMES_HOME`: keys `.env`
    (LLM key), `auth.json`, `config.yaml`, `SOUL.md`. Build locally with
    `hack/p-m1/make-seed.sh`.

@@ -1,5 +1,9 @@
 # P-AC4 — live run record (AKS, 2026-08-11)
 
+> Historical record. The terraform referenced here has since moved to the
+> private instancing repo (`hermes-private-cluster`); this repo keeps the
+> chart and the lifecycle-manager. Numbers remain the reference measurement.
+
 `terraform apply` (aks-personal) + two out-of-band secrets + the in-repo
 chart produced a working platform on a fresh subscription; P-AC1/2/3 were
 then verified live against it. Bot conversed on Discord from an AKS pod;

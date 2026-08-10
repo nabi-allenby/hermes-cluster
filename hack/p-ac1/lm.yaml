@@ -33,6 +33,7 @@ spec:
               valueFrom:
                 secretKeyRef: {name: hrc-tokens, key: provision-token}
             - name: HLM_CONNECTOR_BOT_ID
+              # Replace with YOUR Discord application/bot id.
               value: "1536119976094859394"
             - name: HLM_WAKE_BASE_URL
               value: http://hlm:8080
