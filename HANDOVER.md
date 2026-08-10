@@ -285,15 +285,26 @@ helm_release), `examples/aks-personal` — validate-clean (OpenTofu; brew has
 no modern terraform post-BSL). Live minikube runs the chart in ns `hermes`
 (release `hermes`, dev timings: cooldown 5 s, sweep 15 s).
 
+**P-AC4 ✅ (live on AKS, 2026-08-11 — full record: docs/p-ac4.md)** —
+terraform (aks-personal, sandbox subscription) + chart → Discord
+conversation from an AKS pod, idle suspend (8 s), wake-on-message
+(message→connected ~22 s; **managed-csi attach ≈ 15 s** — §5.2's last
+unknown, measured). Azure CNI enforcement caught a real netpol bug
+(sandbox pods are labeled `sandbox-name-hash`, fixed). Deviations logged in
+docs/p-ac4.md: Regular priority (westeurope Spot drought), images from tmp
+ACR `hermestmp10502` (GHCR packages still private), hlm image/SA drift on
+the live release, chart from repo path (OCI publish pending). **The AKS RG
+`hermes-cluster` + `hermes-tmp` (ACR) are LIVE and billing ~$3.7/day until
+destroyed.**
+
 **Not done:**
 
-1. **P-AC4 — the clean-subscription apply** (user-gated: needs Azure creds
-   + spend): publish chart as OCI to GHCR, build/push an **amd64**
-   hermes-agent image (the local one is arm64 — the only build step the
-   README-only bring-up needs), `terraform apply`, record managed-csi attach
-   latency (design §5.2's last unknown).
-2. **P-M4 — survivability drill** (Spot eviction ≡ involuntary suspend),
-   EKS example + weekly CI.
+1. **Productionize the P-AC4 shortcuts**: make the two GHCR packages public
+   (org admin click), publish the chart as OCI, add
+   `lifecycleManager.imagePullSecrets` to the chart, reconcile the live
+   drift, drop the tmp ACR.
+2. **P-M4 — survivability drill** (Spot eviction ≡ involuntary suspend;
+   needs a region/time with Spot capacity), EKS example + weekly CI.
 3. **Design's one remaining measurement**: Azure managed-csi attach latency
    (the wake budget's only unknown; minikube can't answer it).
 4. Nice-to-haves queued: idle-sweep e2e with a stub WS gateway

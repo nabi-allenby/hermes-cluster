@@ -111,6 +111,6 @@ Nothing else — no pods, secrets, or PVCs (design §4.2).
 The resume figure is the k8s half of the wake path: on this substrate the design's
 ≤30 s wake target has ~27 s of headroom before agent boot time.
 
-> Cloud CSI attach latency (the design's open wake-budget variable, §5.2) is **not**
-> measurable on minikube's hostpath storage — that number still needs the throwaway AKS
-> run from the design doc.
+> Cloud CSI attach latency (the design's open wake-budget variable, §5.2): **measured
+> 2026-08-11 on AKS** — patch → pod Ready **17 s** (managed-csi attach ≈ 15 s of it),
+> +5 s to gateway reconnect. See docs/p-ac4.md.

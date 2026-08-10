@@ -39,7 +39,11 @@ Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manag
 - ✅ Helm chart (`charts/hermes-platform`) — the whole platform as one
   release, lifecycle drill verified on minikube; Terraform `aks` + `platform`
   modules and the `aks-personal` example (`terraform/`, validate-clean).
-- ⬜ P-AC4 clean-subscription apply, chart to GHCR as OCI, EKS module — next.
+- ✅ **P-AC4 passed live on AKS** ([docs/p-ac4.md](docs/p-ac4.md)): terraform +
+  two secrets + chart → Discord conversation, idle suspend, wake-on-message
+  (message→connected ~22 s; managed-csi attach ≈ 15 s — §5.2 measured).
+- ⬜ GHCR package visibility + OCI chart publish, P-M4 (Spot eviction drill,
+  EKS module) — next.
 
 ## Quickstart (minikube)
 
