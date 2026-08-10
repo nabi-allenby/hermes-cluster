@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-# Session pods carry the agents.x-k8s.io/sandbox-name label (set by the
+# Session pods carry the agents.x-k8s.io/sandbox-name-hash label (set by the
 # agent-sandbox controller); that is the selector for "agent pods" here.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -13,7 +13,7 @@ spec:
     - from:
         - podSelector:
             matchExpressions:
-              - {key: agents.x-k8s.io/sandbox-name, operator: Exists}
+              - {key: agents.x-k8s.io/sandbox-name-hash, operator: Exists}
         - podSelector:
             matchLabels: {app.kubernetes.io/name: hlm, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
@@ -75,7 +75,7 @@ metadata:
 spec:
   podSelector:
     matchExpressions:
-      - {key: agents.x-k8s.io/sandbox-name, operator: Exists}
+      - {key: agents.x-k8s.io/sandbox-name-hash, operator: Exists}
   policyTypes: [Ingress, Egress]
   # No ingress: nothing dials an agent; it dials out.
   egress:
