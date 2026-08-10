@@ -12,6 +12,9 @@ terraform {
   }
 }
 
+# Tenant comes from the caller's az login context — no variable to pass.
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "this" {
   name     = var.resource_group_name
   location = var.location
@@ -97,7 +100,7 @@ resource "azurerm_key_vault" "this" {
   name                       = "${var.prefix}-kv"
   location                   = azurerm_resource_group.this.location
   resource_group_name        = azurerm_resource_group.this.name
-  tenant_id                  = var.tenant_id
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
   sku_name                   = "standard"
   rbac_authorization_enabled = true
   purge_protection_enabled   = false

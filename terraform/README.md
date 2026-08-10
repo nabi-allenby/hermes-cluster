@@ -18,11 +18,11 @@ everything with an apiVersion; TF outputs feed values, never the reverse.
 ```bash
 cd terraform/examples/aks-personal
 terraform init
+# subscription + tenant come from your current az login context:
+export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 terraform apply \
-  -var tenant_id=<azure-tenant-id> \
   -var discord_token="$(cat ~/.config/hrc/discord.token)" \
-  -var seed_dir=~/my-hermes-seed \
-  -var agent_image=<registry>/hermes-agent:244d296-amd64
+  -var seed_dir=~/my-hermes-seed
 ```
 
 `seed_dir` holds `.env` / `auth.json` / `config.yaml` / `SOUL.md`.

@@ -32,13 +32,15 @@ terraform {
   }
 }
 
+# Auth + tenant come from the current `az login` context. azurerm v4 wants
+# the subscription explicitly — feed it from the CLI:
+#   export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 provider "azurerm" {
   features {}
 }
 
 module "aks" {
-  source    = "../../modules/aks"
-  tenant_id = var.tenant_id
+  source = "../../modules/aks"
 }
 
 provider "kubernetes" {
@@ -97,8 +99,6 @@ module "platform" {
   YAML
   ]
 }
-
-variable "tenant_id" { type = string }
 
 variable "discord_token" {
   type      = string

@@ -37,7 +37,3 @@ variable "spot_max_price" {
   default     = -1
 }
 
-variable "tenant_id" {
-  description = "Azure AD tenant for Key Vault"
-  type        = string
-}
