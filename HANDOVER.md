@@ -236,14 +236,12 @@ CI until a connector image is pullable there). The Dockerfile cross-compiles
 from `$BUILDPLATFORM` (`GOOS`/`GOARCH` from buildx args), so arm64 never runs
 under QEMU; the image job uses `type=gha` layer cache.
 
-Known CI caveats: the connector's v0.2.0 GHCR image is published as
+The connector image is public on GHCR as
 `ghcr.io/nabi-allenby/hermes-relay-connector:0.2.0` (bare semver — the
-release workflow strips the `v`), but the package is still private: pulls
-403 both anonymously and with the local ChefControl docker credential
-(no `read:packages`). Locally, e2e keeps building `hrc:e2e` from the
-sibling `~/Downloads/hermod` checkout. The CI e2e job now logs in to GHCR
-with `GITHUB_TOKEN` (`packages: read`), so tier 2 lights up automatically
-once the package is made public or granted to the repo.
+release workflow strips the `v`; tags: 0.1.0, 0.2.0, latest; anonymous
+pull verified 2026-08-10). Tier-2 e2e falls back to it automatically when
+no local `hrc:e2e` exists, and CI's e2e job logs in to GHCR with
+`GITHUB_TOKEN`, so tier 2 runs in CI too.
 
 ## 12. Current status & next steps
 
