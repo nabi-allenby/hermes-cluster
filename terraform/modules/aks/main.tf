@@ -85,18 +85,18 @@ resource "azurerm_kubernetes_cluster_node_pool" "spot" {
   # zones they may use (e.g. westeurope offering only '2').
   zones = var.zone == "" ? null : [var.zone]
 
-  priority        = "Spot"
-  eviction_policy = "Delete"
-  spot_max_price  = var.spot_max_price
+  priority        = var.agent_pool_priority
+  eviction_policy = var.agent_pool_priority == "Spot" ? "Delete" : null
+  spot_max_price  = var.agent_pool_priority == "Spot" ? var.spot_max_price : null
 
   node_count = 1
 
   node_labels = {
     "hermes.nabi.dev/pool" = "agents"
   }
-  node_taints = [
+  node_taints = var.agent_pool_priority == "Spot" ? [
     "kubernetes.azure.com/scalesetpriority=spot:NoSchedule",
-  ]
+  ] : []
 }
 
 resource "azurerm_key_vault" "this" {
