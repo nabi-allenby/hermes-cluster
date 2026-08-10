@@ -35,10 +35,10 @@ lifecycleManager:
     limits: {cpu: 500m, memory: 256Mi}
 
 session:
-  # The hermes-agent image. The conformance pin is NousResearch/hermes-agent
-  # @244d296; there is no official registry image — build and push your own
-  # (see chart README: the image must match your node architecture).
-  image: hermes-agent:local
+  # Official multi-arch image (amd64+arm64). Pin a release tag or digest —
+  # never a floating tag; the relay contract was conformance-verified around
+  # NousResearch/hermes-agent@244d296 (v2026.8.3 is the nearest release).
+  image: nousresearch/hermes-agent:v2026.8.3
   imagePullPolicy: IfNotPresent
   templateName: hermes-session
   warmPoolName: hermes-pool

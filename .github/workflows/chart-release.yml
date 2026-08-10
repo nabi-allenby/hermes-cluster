@@ -1,0 +1,29 @@
+# Publishes charts/hermes-platform as an OCI artifact on chart-v* tags
+# (design §9: chart releases are an independent line from lifecycle-manager
+# v* releases). Pull with:
+#   helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform --version <x.y.z>
+name: chart-release
+on:
+  push:
+    tags: ["chart-v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: lint + package + push
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#chart-v}"
+          grep -q "^version: ${version}$" charts/hermes-platform/Chart.yaml \
+            || { echo "Chart.yaml version does not match tag ${TAG}"; exit 1; }
+          helm lint charts/hermes-platform
+          helm package charts/hermes-platform
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          helm push "hermes-platform-${version}.tgz" oci://ghcr.io/${{ github.repository }}/charts

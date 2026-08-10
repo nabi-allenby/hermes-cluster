@@ -16,11 +16,10 @@ echo-buffer → wake <2 s → drain → decommission cascade).
    `hack/p-m1/make-seed.sh`.
 3. **Secret `hrc-discord-token`** (key `token`) — optional; without it the
    connector runs Discord-less (echo/relay only).
-4. **A pullable hermes-agent image** matching your node architecture
-   (`session.image`). There is no official registry image; the conformance
-   pin is NousResearch/hermes-agent `@244d296`. On minikube:
-   `minikube image load hermes-agent:local`. On AKS (amd64 Spot pool): build
-   amd64 and push to a registry the cluster can reach.
+4. **The agent image** (`session.image`) — defaults to the official
+   multi-arch `nousresearch/hermes-agent:v2026.8.3` (Docker Hub). Pin a
+   release tag or digest, never `latest`; the relay contract was
+   conformance-verified around commit `244d296`.
 
 Admin/provision tokens are generated on first install and kept across
 upgrades (`connector.existingTokensSecret` to bring your own).
