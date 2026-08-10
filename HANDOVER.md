@@ -1,7 +1,7 @@
 # HANDOVER — hermes-cluster lifecycle-manager (orchestrator)
 
 Everything a new maintainer (human or agent) needs to pick this project up.
-Written 2026-08-10, at the state of the first two commits on `main`.
+Started 2026-08-10; updated through the 2026-08-11 library split.
 
 ---
 
@@ -39,7 +39,7 @@ consumes its published image over HTTP, zero code coupling.
 ## 2. Repo map
 
 ```
-hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (private)
+hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (PUBLIC library)
 ├── README.md                          quickstart, env table, pins
 ├── HANDOVER.md                        this file
 ├── Makefile                           build/test/e2e/minikube targets
@@ -79,7 +79,7 @@ hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (p
 | k8s access | **dynamic client + unstructured**, no controller-runtime, no generated clientset | upstream is young (v1alpha1→v1beta1 churn already happened); our surface is ~6 field paths, isolated in one file; this is an HTTP service + poll loops, not a reconciler. GVR group/version are env-configurable |
 | Relay integration | in scope, behind `HLM_CONNECTOR_ENABLED` | core stays generic without it |
 | Orphan policy | **report-only** | auto-deleting connector state that might belong to non-orchestrator gateways is the wrong default |
-| Repo/publishing | private repo under nabi-allenby; images to GHCR | matches connector conventions; gh authed as ChefControl |
+| Repo/publishing | public library repo (LM + OCI chart); private instancing repo hermes-private-cluster | separation of concerns, 2026-08-11 |
 
 ## 4. Substrate facts (agent-sandbox v0.5.4) — the load-bearing surprises
 
