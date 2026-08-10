@@ -59,6 +59,9 @@ session:
   # this toleration sessions never schedule there.
   nodeSelector: {}
   tolerations: []
+  # e.g. [{name: acr-pull}] for a private registry the nodes can't reach
+  # via identity (kubernetes.io/dockerconfigjson Secret, created out of band).
+  imagePullSecrets: []
 
 networkPolicy:
   # Default-on. Requires a CNI that enforces NetworkPolicy (AKS: Azure CNI /
