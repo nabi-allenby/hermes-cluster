@@ -8,9 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       hermes_ref:
-        description: NousResearch/hermes-agent git ref to build
+        description: NousResearch/hermes-agent git ref to build (full SHA)
         required: true
-        default: "244d296"
+        default: "244d296646909aca1dd16c9759491da0ef4cd163"
+      push_acr:
+        description: Also push to the ACR named by repo secrets ACR_*
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,6 +34,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - if: ${{ github.event.inputs.push_acr == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
       - id: tag
         # actions/checkout needs a full SHA; images keep the familiar short one.
         run: echo "short=$(echo '${{ github.event.inputs.hermes_ref }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
@@ -41,5 +51,6 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/hermes-agent:${{ github.event.inputs.hermes_ref }}
             ghcr.io/${{ github.repository }}/hermes-agent:${{ steps.tag.outputs.short }}
+            ${{ github.event.inputs.push_acr == 'true' && format('{0}/hermes-agent:{1}', secrets.ACR_LOGIN_SERVER, steps.tag.outputs.short) || '' }}
           cache-from: type=gha,scope=agent-image
           cache-to: type=gha,scope=agent-image,mode=max
