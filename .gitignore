@@ -1,0 +1,4 @@
+lifecycle-manager/lifecycle-manager
+*.db
+.DS_Store
+dist/
