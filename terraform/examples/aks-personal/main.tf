@@ -40,7 +40,20 @@ provider "azurerm" {
 }
 
 module "aks" {
-  source = "../../modules/aks"
+  source              = "../../modules/aks"
+  agent_vm_size       = var.agent_vm_size
+  agent_pool_priority = var.agent_pool_priority
+}
+
+variable "agent_vm_size" {
+  type    = string
+  default = "Standard_D2s_v6"
+}
+
+variable "agent_pool_priority" {
+  description = "Spot (default) or Regular when the region has no Spot capacity"
+  type        = string
+  default     = "Spot"
 }
 
 provider "kubernetes" {
