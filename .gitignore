@@ -9,3 +9,4 @@ dist/
 *.tfstate.*
 .terraform.lock.hcl
 *.tfvars
+*.plan

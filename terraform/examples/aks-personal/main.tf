@@ -78,7 +78,7 @@ module "platform" {
   }
   values = merge(
     {
-      "session.image"                 = var.agent_image
+      "session.image"                 = local.agent_image
       "connector.buffer.storageClass" = "managed-csi"
       "session.home.storageClass"     = "managed-csi"
     },
@@ -117,8 +117,13 @@ variable "chart" {
 }
 
 variable "agent_image" {
-  description = "Pullable amd64 hermes-agent image (no official image exists; build your own)"
+  description = "Pullable amd64 hermes-agent image (built by the agent-image workflow; make the package public or wire an imagePullSecret)"
   type        = string
+  default     = "ghcr.io/nabi-allenby/hermes-cluster/hermes-agent:244d296"
+}
+
+locals {
+  agent_image = var.agent_image
 }
 
 variable "extra_values" {
