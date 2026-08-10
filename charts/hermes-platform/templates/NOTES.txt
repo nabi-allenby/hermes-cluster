@@ -1,0 +1,21 @@
+hermes-platform installed.
+
+Components:
+  connector:          {{ .Release.Name }}-hrc:8420   (Discord{{ if not .Values.connector.discordTokenSecret }} DISABLED — no token secret{{ end }})
+  lifecycle-manager:  {{ .Release.Name }}-hlm:{{ .Values.lifecycleManager.listenPort }}
+  session template:   {{ .Values.session.templateName }} (pool {{ .Values.session.warmPoolName }}, {{ .Values.session.warmReplicas }} spares)
+
+Prerequisites you provided out of band (the chart references, never creates):
+  {{ .Values.session.homeSeedSecret }}: keys .env / auth.json / config.yaml / SOUL.md
+  {{- if .Values.connector.discordTokenSecret }}
+  {{ .Values.connector.discordTokenSecret }}: key token (Discord bot token)
+  {{- end }}
+
+Create a session:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-hlm {{ .Values.lifecycleManager.listenPort }}:{{ .Values.lifecycleManager.listenPort }} &
+  curl -X POST localhost:{{ .Values.lifecycleManager.listenPort }}/v1/sessions \
+    -H 'Content-Type: application/json' -d '{"connector":{}}'
+
+Then DM your Discord bot. Idle sessions suspend after {{ .Values.lifecycleManager.idleTimeout }}; a
+message while suspended wakes the pod on its PVC. Decommission with
+DELETE /v1/sessions/{id} — the only destruction path.

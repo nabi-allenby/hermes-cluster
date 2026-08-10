@@ -1,0 +1,121 @@
+# The P-M1 session recipe (docs/p-m1.md) as chart resources. Requires the
+# agent-sandbox CRDs/controller (installed by the terraform platform module
+# or hack/minikube-up.sh) — they are deliberately NOT part of this chart.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-hermes-bootstrap
+data:
+  bootstrap.py: |
+{{ .Files.Get "files/bootstrap.py" | indent 4 }}
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: {{ .Values.session.templateName }}
+spec:
+  envVarsInjectionPolicy: Disallowed
+  podTemplate:
+    spec:
+      # agent-sandbox v0.5.4 defaults sandbox pods to dnsPolicy None with
+      # public resolvers when the template is silent; ClusterFirst is
+      # required to resolve the connector Service (docs/p-m0.md).
+      dnsPolicy: ClusterFirst
+      terminationGracePeriodSeconds: {{ .Values.session.terminationGracePeriodSeconds }}
+      {{- with .Values.session.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.session.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: seed-home
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              # 10000:10000 is the image's baked-in hermes user; its boot
+              # hook chowns only known subdirs, never top-level files.
+              for b in .env auth.json config.yaml SOUL.md; do
+                if [ -e "/seed/$b" ] && [ ! -e "/opt/data/$b" ]; then
+                  cp -L "/seed/$b" "/opt/data/$b"
+                  chmod 600 "/opt/data/$b"
+                  chown 10000:10000 "/opt/data/$b"
+                  echo "seeded $b"
+                fi
+              done
+          volumeMounts:
+            - name: home
+              mountPath: /opt/data
+            - name: seed
+              mountPath: /seed
+              readOnly: true
+      containers:
+        - name: agent
+          image: {{ .Values.session.image }}
+          imagePullPolicy: {{ .Values.session.imagePullPolicy }}
+          args:
+            - sh
+            - -c
+            - |
+              set -eu
+              export HERMES_SESSION_ID="${HERMES_SESSION_ID:-$(hostname)}"
+              python /run/hermes/bootstrap.py
+              exec hermes gateway run --replace
+          env:
+            - name: HERMES_SESSION_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HERMES_RELAY_URL
+              value: {{ include "hp.connectorURL" . }}
+            - name: HERMES_RELAY_BOT_ID
+              value: {{ .Values.session.botId | quote }}
+          volumeMounts:
+            - name: home
+              mountPath: /opt/data
+            - name: provision
+              mountPath: /run/hermes
+              readOnly: true
+          resources: {{- toYaml .Values.session.resources | nindent 12 }}
+      volumes:
+        - name: seed
+          secret:
+            secretName: {{ .Values.session.homeSeedSecret }}
+        - name: provision
+          projected:
+            defaultMode: 0444
+            sources:
+              - secret:
+                  name: {{ include "hp.tokensSecretName" . }}
+                  items:
+                    - key: provision-token
+                      path: provision-token
+              - configMap:
+                  name: {{ .Release.Name }}-hermes-bootstrap
+                  items:
+                    - key: bootstrap.py
+                      path: bootstrap.py
+  volumeClaimTemplates:
+    - metadata:
+        name: home
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.session.home.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.session.home.size }}
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: {{ .Values.session.warmPoolName }}
+spec:
+  # gatewayId == pod == claim name only holds on cold starts; warm-pool
+  # adoption breaks that identity, so keep replicas at 0 until the session
+  # recipe carries identity differently (design §12).
+  replicas: {{ .Values.session.warmReplicas }}
+  sandboxTemplateRef:
+    name: {{ .Values.session.templateName }}

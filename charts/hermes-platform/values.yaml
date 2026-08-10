@@ -1,0 +1,67 @@
+# hermes-platform values. Cloud-specific knobs (storageClass, identity
+# annotations) are values; everything with a cloud ID belongs to Terraform.
+
+connector:
+  image: ghcr.io/nabi-allenby/hermes-relay-connector:0.2.0
+  imagePullPolicy: IfNotPresent
+  # Discord bot token Secret (key: token). Created out of band (or by the
+  # terraform platform module). Empty => connector runs without Discord
+  # (echo/relay only — useful for dev clusters).
+  discordTokenSecret: hrc-discord-token
+  # Admin/provision tokens: generated on first install and reused on upgrade.
+  # Set existingTokensSecret to bring your own (keys: admin-token,
+  # provision-token).
+  existingTokensSecret: ""
+  wakeCooldownSeconds: 60
+  buffer:
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+lifecycleManager:
+  image: ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager:dev
+  imagePullPolicy: IfNotPresent
+  listenPort: 8080
+  sweepInterval: 60s
+  idleTimeout: 30m
+  ttl: "0"
+  # Optional bearer on /v1/* (never /wake). Empty disables.
+  apiToken: ""
+  logLevel: info
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+
+session:
+  # The hermes-agent image. The conformance pin is NousResearch/hermes-agent
+  # @244d296; there is no official registry image — build and push your own
+  # (see chart README: the image must match your node architecture).
+  image: hermes-agent:local
+  imagePullPolicy: IfNotPresent
+  templateName: hermes-session
+  warmPoolName: hermes-pool
+  warmReplicas: 0
+  # First-boot seed Secret with keys: .env, auth.json, config.yaml, SOUL.md
+  # (see hack/p-m1/make-seed.sh). Holds the LLM key — created out of band.
+  homeSeedSecret: hermes-home-seed
+  botId: dev-bot
+  home:
+    size: 10Gi
+    storageClass: ""
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
+  # Pin sessions to a dedicated (e.g. Spot) pool. The AKS Spot pool is
+  # tainted kubernetes.azure.com/scalesetpriority=spot:NoSchedule — without
+  # this toleration sessions never schedule there.
+  nodeSelector: {}
+  tolerations: []
+
+networkPolicy:
+  # Default-on. Requires a CNI that enforces NetworkPolicy (AKS: Azure CNI /
+  # Cilium; plain minikube docker driver does not enforce — rules are inert
+  # there, not harmful).
+  enabled: true

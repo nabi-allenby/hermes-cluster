@@ -3,7 +3,7 @@ IMAGE         := ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager
 VERSION       ?= dev
 MINIKUBE_PROFILE ?= minikube
 
-.PHONY: build test lint vet image image-load minikube-up p-m0 p-m1 e2e run-local clean
+.PHONY: build test lint vet image image-load minikube-up p-m0 p-m1 chart-lint tf-validate e2e run-local clean
 
 build:
 	cd $(LM_DIR) && go build ./...
@@ -33,6 +33,13 @@ p-m0: minikube-up
 # plus a seed home dir for make-seed.sh (see docs/p-m1.md).
 p-m1: minikube-up
 	hack/p-m1/run.sh
+
+chart-lint:
+	helm lint charts/hermes-platform
+	helm template t charts/hermes-platform >/dev/null
+
+tf-validate:
+	cd terraform/examples/aks-personal && (terraform validate 2>/dev/null || tofu validate)
 
 # e2e expects a running minikube with agent-sandbox installed (make minikube-up).
 e2e:

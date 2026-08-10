@@ -1,0 +1,91 @@
+# hermes-relay-connector: single replica over a SQLite buffer PVC, so the
+# strategy MUST stay Recreate. The image is FROM scratch, non-root (65532);
+# fsGroup makes the PVC writable. Do not override HRC_DB: /data is the only
+# writable path in the image.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-hrc
+  labels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+    spec:
+      securityContext:
+        fsGroup: 65532
+      containers:
+        - name: hrc
+          image: {{ .Values.connector.image }}
+          imagePullPolicy: {{ .Values.connector.imagePullPolicy }}
+          env:
+            - name: HRC_LISTEN
+              value: 0.0.0.0:8420
+            - name: HRC_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ include "hp.tokensSecretName" . }}, key: admin-token}
+            - name: HRC_PROVISION_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ include "hp.tokensSecretName" . }}, key: provision-token}
+            {{- if .Values.connector.discordTokenSecret }}
+            - name: HRC_DISCORD_TOKEN_FILE
+              value: /run/secrets/discord.token
+            {{- end }}
+            - name: HRC_WAKE_COOLDOWN_SECS
+              value: {{ .Values.connector.wakeCooldownSeconds | quote }}
+          ports:
+            - containerPort: 8420
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            {{- if .Values.connector.discordTokenSecret }}
+            - name: discord
+              mountPath: /run/secrets
+              readOnly: true
+            {{- end }}
+          readinessProbe:
+            # The admin plane has no /healthz; /metrics is unauthenticated by
+            # design and is the documented reachability probe.
+            httpGet: {path: /metrics, port: 8420}
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          resources: {{- toYaml .Values.connector.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-hrc-buffer
+        {{- if .Values.connector.discordTokenSecret }}
+        - name: discord
+          secret:
+            secretName: {{ .Values.connector.discordTokenSecret }}
+            items:
+              - key: token
+                path: discord.token
+        {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-hrc-buffer
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.connector.buffer.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.connector.buffer.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-hrc
+spec:
+  selector: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+  ports:
+    - port: 8420
+      targetPort: 8420

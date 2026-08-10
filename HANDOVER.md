@@ -271,16 +271,29 @@ demo down; the old Docker parity demo containers (`hrc`, `hermes-agent-1`)
 were `docker stop`ed to avoid double-fronting the bot — `docker start` them
 to restore.
 
+**P-M3 authored ✅ (2026-08-11)** — `charts/hermes-platform` (connector
+`Recreate`×1 + buffer PVC fsGroup 65532, LM with restricted securityContext,
+generated-and-kept admin/provision tokens via `lookup`, the P-M1 session
+template with `dnsPolicy: ClusterFirst`, NetworkPolicies default-on,
+session nodeSelector/tolerations for the tainted Spot pool). Lifecycle
+drill green against the chart release on minikube (wake <2 s via echo
+buffer, run from an in-cluster pod — port-forwards are too flaky for
+2-minute waits). Terraform: `modules/aks` (Free tier, single-AZ amd64 Spot
+D2as_v5, Azure CNI + netpol, workload identity, Key Vault),
+`modules/platform` (agent-sandbox manifest via kubectl provider, secrets,
+helm_release), `examples/aks-personal` — validate-clean (OpenTofu; brew has
+no modern terraform post-BSL). Live minikube runs the chart in ns `hermes`
+(release `hermes`, dev timings: cooldown 5 s, sweep 15 s).
+
 **Not done:**
 
-1. **P-M3 — chart + terraform**: charts/hermes-platform (connector Deployment
-   `Recreate`×1 + buffer PVC with `fsGroup: 65532` — the v0.2.0 image is
-   non-root; LM Deployment + Service; RBAC from hack/e2e/rbac.yaml;
-   NetworkPolicies; templates + warm pool), then the aks-personal Terraform
-   (design §8-§9: Free tier, one Spot node, Key Vault) → P-AC4 on a clean
-   subscription.
+1. **P-AC4 — the clean-subscription apply** (user-gated: needs Azure creds
+   + spend): publish chart as OCI to GHCR, build/push an **amd64**
+   hermes-agent image (the local one is arm64 — the only build step the
+   README-only bring-up needs), `terraform apply`, record managed-csi attach
+   latency (design §5.2's last unknown).
 2. **P-M4 — survivability drill** (Spot eviction ≡ involuntary suspend),
-   EKS example + weekly CI, chart to GHCR as OCI.
+   EKS example + weekly CI.
 3. **Design's one remaining measurement**: Azure managed-csi attach latency
    (the wake budget's only unknown; minikube can't answer it).
 4. Nice-to-haves queued: idle-sweep e2e with a stub WS gateway

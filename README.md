@@ -36,7 +36,10 @@ Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manag
 - ✅ **P-AC1 passed live** (`hack/p-ac1/`): real Discord DM → in-cluster
   agent replies; idle → suspended to disk-only; DM while suspended →
   buffered → wake poke → resume → reply. Decommission cascades in seconds.
-- ⬜ Helm chart (`charts/`), Terraform AKS/EKS modules (`terraform/`) — next.
+- ✅ Helm chart (`charts/hermes-platform`) — the whole platform as one
+  release, lifecycle drill verified on minikube; Terraform `aks` + `platform`
+  modules and the `aks-personal` example (`terraform/`, validate-clean).
+- ⬜ P-AC4 clean-subscription apply, chart to GHCR as OCI, EKS module — next.
 
 ## Quickstart (minikube)
 
