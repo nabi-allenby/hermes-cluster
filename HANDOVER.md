@@ -297,14 +297,29 @@ the live release, chart from repo path (OCI publish pending). **The AKS RG
 `hermes-cluster` + `hermes-tmp` (ACR) are LIVE and billing ~$3.7/day until
 destroyed.**
 
+**Library split ✅ (2026-08-11)** — this repo is now the public-intent
+library: lifecycle-manager (GHCR semver images; v0.1.0 tagged) + the chart
+as OCI (`chart-v0.1.0` published to
+`oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform`).
+Agent image: official `nousresearch/hermes-agent` (Docker Hub, multi-arch;
+pin release tags — conformance pin @244d296 ≈ v2026.8.3). ALL terraform
+moved to the private instancing repo
+**github.com/nabi-allenby/hermes-private-cluster** together with the LIVE
+tofu state (28 resources — the running AKS deployment is managed from
+there now). Git history here scanned clean for secrets (22 commits).
+
 **Not done:**
 
-1. **Productionize the P-AC4 shortcuts**: make the two GHCR packages public
-   (org admin click), publish the chart as OCI, add
-   `lifecycleManager.imagePullSecrets` to the chart, reconcile the live
-   drift, drop the tmp ACR.
-2. **P-M4 — survivability drill** (Spot eviction ≡ involuntary suspend;
-   needs a region/time with Spot capacity), EKS example + weekly CI.
+1. **Org-admin visibility clicks**: GHCR packages `lifecycle-manager` +
+   `charts/hermes-platform` → public (`hermes-agent` GHCR package is
+   obsolete — deletable); optionally this repo → public (history is clean).
+2. **Reconcile live AKS drift** via the instancing repo (next apply moves
+   hlm to the GHCR 0.1.0 image + official agent image, then drop the tmp
+   ACR `hermes-tmp` RG and the ACR_* repo secrets here).
+3. **P-M4 — survivability drill** (Spot eviction ≡ involuntary suspend;
+   needs a region/time with Spot capacity), EKS example + weekly CI, and a
+   `lifecycleManager.imagePullSecrets` chart value for private-registry
+   setups.
 3. **Design's one remaining measurement**: Azure managed-csi attach latency
    (the wake budget's only unknown; minikube can't answer it).
 4. Nice-to-haves queued: idle-sweep e2e with a stub WS gateway

@@ -42,7 +42,13 @@ Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manag
 - ✅ **P-AC4 passed live on AKS** ([docs/p-ac4.md](docs/p-ac4.md)): terraform +
   two secrets + chart → Discord conversation, idle suspend, wake-on-message
   (message→connected ~22 s; managed-csi attach ≈ 15 s — §5.2 measured).
-- ⬜ GHCR package visibility + OCI chart publish, P-M4 (Spot eviction drill,
+- ✅ **Library split**: this repo is the plug-&-play library — the
+  lifecycle-manager (GHCR, semver) and the `hermes-platform` chart
+  (`oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform`).
+  Agent image: official `nousresearch/hermes-agent` (Docker Hub, multi-arch).
+  Terraform wiring lives in the private instancing repo
+  (`hermes-private-cluster`).
+- ⬜ Package/repo visibility flips (org admin), P-M4 (Spot eviction drill,
   EKS module) — next.
 
 ## Quickstart (minikube)
