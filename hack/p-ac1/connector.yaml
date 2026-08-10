@@ -1,0 +1,70 @@
+# P-AC1 connector: same as hack/p-m1/connector.yaml plus the real Discord
+# bot token (Secret hrc-discord-token, created by run.sh from
+# ~/.config/hrc/discord.token). Buffer still on emptyDir — good enough for
+# the live demo; the P-M3 chart gives it a PVC.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hrc
+  labels: {app: hrc}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: hrc}
+  template:
+    metadata:
+      labels: {app: hrc}
+    spec:
+      securityContext:
+        fsGroup: 65532
+      containers:
+        - name: hrc
+          image: ghcr.io/nabi-allenby/hermes-relay-connector:0.2.0
+          env:
+            - name: HRC_LISTEN
+              value: 0.0.0.0:8420
+            - name: HRC_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef: {name: hrc-tokens, key: admin-token}
+            - name: HRC_PROVISION_TOKEN
+              valueFrom:
+                secretKeyRef: {name: hrc-tokens, key: provision-token}
+            - name: HRC_DISCORD_TOKEN_FILE
+              value: /run/secrets/discord.token
+            - name: HRC_WAKE_COOLDOWN_SECS
+              value: "15"
+          ports:
+            - containerPort: 8420
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: discord
+              mountPath: /run/secrets
+              readOnly: true
+          readinessProbe:
+            httpGet: {path: /metrics, port: 8420}
+            initialDelaySeconds: 1
+            periodSeconds: 2
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: discord
+          secret:
+            secretName: hrc-discord-token
+            items:
+              - key: token
+                path: discord.token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hrc
+spec:
+  selector: {app: hrc}
+  ports:
+    - port: 8420
+      targetPort: 8420

@@ -256,25 +256,37 @@ buffered backlog drains. Recipe + timings in docs/p-m1.md; drill
 default to `dnsPolicy: None` with public resolvers — templates must set
 `ClusterFirst` explicitly (recorded in docs/p-m0.md).
 
+**P-AC1 ✅ (live, 2026-08-11, `hack/p-ac1/`)** — full loop on minikube with
+the in-cluster LM (its first in-cluster run) + connector fronting the real
+Discord bot (Apollo): DM → conversational LLM reply; ~2.5 min silence → idle
+sweeper suspends (pod gone, disk-only); DM while suspended → buffer → wake
+poke → LM resumes → agent drains and replies. Decommission via
+`DELETE /v1/sessions` verified live: deprovision + full cascade in 6 s,
+connector left with zero instances. Notes: the LM ran in-cluster with RBAC
+from hack/e2e/rbac.yaml unchanged; `HRC_DEFAULT_GATEWAY` unset routes DMs to
+the single session; the seed home's OpenRouter key had expired and was
+refreshed (dead key symptom: agent replies "Provider authentication failed",
+OpenRouter returns 401 "User not found"). `hack/p-ac1/down.sh` tears the
+demo down; the old Docker parity demo containers (`hrc`, `hermes-agent-1`)
+were `docker stop`ed to avoid double-fronting the bot — `docker start` them
+to restore.
+
 **Not done:**
 
-1. **P-AC1 proper — converse via Discord**: layer onto the P-M1 recipe a
-   connector with `HRC_DISCORD_TOKEN`, a chat route (the LM already binds
-   these at session create), and a relay home channel for the agent. All
-   plumbing is proven; this is configuration + a live Discord run.
-2. **P-M3 — chart + terraform**: charts/hermes-platform (connector Deployment
+1. **P-M3 — chart + terraform**: charts/hermes-platform (connector Deployment
    `Recreate`×1 + buffer PVC with `fsGroup: 65532` — the v0.2.0 image is
    non-root; LM Deployment + Service; RBAC from hack/e2e/rbac.yaml;
    NetworkPolicies; templates + warm pool), then the aks-personal Terraform
    (design §8-§9: Free tier, one Spot node, Key Vault) → P-AC4 on a clean
    subscription.
-3. **P-M4 — survivability drill** (Spot eviction ≡ involuntary suspend),
+2. **P-M4 — survivability drill** (Spot eviction ≡ involuntary suspend),
    EKS example + weekly CI, chart to GHCR as OCI.
-4. **Design's one remaining measurement**: Azure managed-csi attach latency
+3. **Design's one remaining measurement**: Azure managed-csi attach latency
    (the wake budget's only unknown; minikube can't answer it).
-5. Nice-to-haves queued: idle-sweep e2e with a stub WS gateway
+4. Nice-to-haves queued: idle-sweep e2e with a stub WS gateway
    (`hack/stubgw/` idea) if echo-only can't move `turnInFlight`; LM
-   Prometheus metrics; `HLM_ORPHAN_POLICY=deprovision` opt-in.
+   Prometheus metrics; `HLM_ORPHAN_POLICY=deprovision` opt-in; a small
+   operator CLI wrapping the LM API (create/list/decommission).
 
 ## 13. Operational notes
 

@@ -33,6 +33,9 @@ Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manag
 - ✅ P-M1 headless Hermes pod recipe: the real hermes-agent as a sandbox
   session — PVC home, first-boot seed, boot-time self-provision, graceful
   suspend, re-auth on resume ([docs/p-m1.md](docs/p-m1.md), `make p-m1`).
+- ✅ **P-AC1 passed live** (`hack/p-ac1/`): real Discord DM → in-cluster
+  agent replies; idle → suspended to disk-only; DM while suspended →
+  buffered → wake poke → resume → reply. Decommission cascades in seconds.
 - ⬜ Helm chart (`charts/`), Terraform AKS/EKS modules (`terraform/`) — next.
 
 ## Quickstart (minikube)
