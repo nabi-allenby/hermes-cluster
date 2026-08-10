@@ -51,7 +51,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     vm_size        = var.system_vm_size
     node_count     = 1
     vnet_subnet_id = azurerm_subnet.nodes.id
-    zones          = [var.zone]
+    zones          = var.zone == "" ? null : [var.zone]
 
     upgrade_settings {
       max_surge = "10%"
@@ -80,7 +80,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "spot" {
   kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
   vm_size               = var.agent_vm_size
   vnet_subnet_id        = azurerm_subnet.nodes.id
-  zones                 = [var.zone] # single AZ: disks are zone-bound
+  # Empty zone (default) = non-zonal: nodes and disks are regional, so no
+  # zone-affinity mismatch is possible. Zonal subscriptions vary in which
+  # zones they may use (e.g. westeurope offering only '2').
+  zones = var.zone == "" ? null : [var.zone]
 
   priority        = "Spot"
   eviction_policy = "Delete"
@@ -97,7 +100,8 @@ resource "azurerm_kubernetes_cluster_node_pool" "spot" {
 }
 
 resource "azurerm_key_vault" "this" {
-  name                       = "${var.prefix}-kv"
+  # Vault names are globally unique; suffix keeps the deploy reproducible.
+  name                       = "${var.prefix}-kv-${substr(md5(azurerm_resource_group.this.id), 0, 6)}"
   location                   = azurerm_resource_group.this.location
   resource_group_name        = azurerm_resource_group.this.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id

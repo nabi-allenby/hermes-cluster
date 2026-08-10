@@ -15,9 +15,9 @@ variable "location" {
 }
 
 variable "zone" {
-  description = "Single availability zone (disks are zone-bound; keep node + disks together)"
+  description = "Availability zone, or \"\" for non-zonal (regional nodes + disks — the safe default; zonal offerings vary by subscription)"
   type        = string
-  default     = "1"
+  default     = ""
 }
 
 variable "system_vm_size" {
