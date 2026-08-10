@@ -3,7 +3,7 @@ IMAGE         := ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager
 VERSION       ?= dev
 MINIKUBE_PROFILE ?= minikube
 
-.PHONY: build test lint vet image image-load minikube-up p-m0 e2e run-local clean
+.PHONY: build test lint vet image image-load minikube-up p-m0 p-m1 e2e run-local clean
 
 build:
 	cd $(LM_DIR) && go build ./...
@@ -28,6 +28,11 @@ minikube-up:
 
 p-m0: minikube-up
 	hack/p-m0/run.sh
+
+# P-M1 needs images hermes-agent:local and hrc:e2e in the local docker daemon
+# plus a seed home dir for make-seed.sh (see docs/p-m1.md).
+p-m1: minikube-up
+	hack/p-m1/run.sh
 
 # e2e expects a running minikube with agent-sandbox installed (make minikube-up).
 e2e:

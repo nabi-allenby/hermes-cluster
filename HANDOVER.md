@@ -47,10 +47,12 @@ hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (p
 ├── charts/  terraform/                placeholders (P-M3/P-M4), READMEs describe intent
 ├── docs/
 │   ├── api.md                         full HTTP API reference
-│   └── p-m0.md                        ⭐ agent-sandbox substrate facts + measured timings
+│   ├── p-m0.md                        ⭐ agent-sandbox substrate facts + measured timings
+│   └── p-m1.md                        ⭐ headless Hermes pod recipe + measured timings
 ├── hack/
 │   ├── minikube-up.sh                 minikube + pinned agent-sandbox install
 │   ├── p-m0/                          hello-world template/pool/claim + run.sh (tier-0 e2e)
+│   ├── p-m1/                          real-agent template, dev connector, seed tooling, drill
 │   └── e2e/                           rbac.yaml (exact LM RBAC), template.yaml (e2e pool)
 └── lifecycle-manager/                 Go module (…/lifecycle-manager), Go 1.24+
     ├── Dockerfile                     distroless static nonroot, cross-compiles ($BUILDPLATFORM)
@@ -234,27 +236,34 @@ CI until a connector image is pullable there). The Dockerfile cross-compiles
 from `$BUILDPLATFORM` (`GOOS`/`GOARCH` from buildx args), so arm64 never runs
 under QEMU; the image job uses `type=gha` layer cache.
 
-Known CI caveats: GHCR pull of the connector image needs `read:packages`
-(the local gh token lacks it — that's why e2e builds `hrc:e2e` from the
-sibling `~/Downloads/hermod` checkout); the connector's own v0.2.0 GitHub
-release/GHCR image was still publishing at handover time.
+Known CI caveats: the connector's v0.2.0 GHCR image is published as
+`ghcr.io/nabi-allenby/hermes-relay-connector:0.2.0` (bare semver — the
+release workflow strips the `v`), but the package is still private: pulls
+403 both anonymously and with the local ChefControl docker credential
+(no `read:packages`). Locally, e2e keeps building `hrc:e2e` from the
+sibling `~/Downloads/hermod` checkout. The CI e2e job now logs in to GHCR
+with `GITHUB_TOKEN` (`packages: read`), so tier 2 lights up automatically
+once the package is made public or granted to the repo.
 
 ## 12. Current status & next steps
 
 **Done** (maps to design §10): P-M0 ✅ (substrate validated + timings);
 P-M2 core ✅ on minikube — P-AC1/2/3's k8s halves plus the agentless wake
-loop are proven. Two commits on main; repo pushed.
+loop are proven. **P-M1 ✅** — the real hermes-agent (@244d296,
+`hermes-agent:local`) runs as a sandbox session: PVC home, first-boot seed
+from Secret, boot-time self-provision, connected-idle in 5.7 s from claim
+create, graceful suspend (~4 s), re-auth from persisted state on resume,
+buffered backlog drains. Recipe + timings in docs/p-m1.md; drill
+`hack/p-m1/run.sh` (`make p-m1`). Substrate surprise found: sandbox pods
+default to `dnsPolicy: None` with public resolvers — templates must set
+`ClusterFirst` explicitly (recorded in docs/p-m0.md).
 
 **Not done:**
 
-1. **P-M1 — headless Hermes pod recipe on k8s**: a `SandboxTemplate` for the
-   real hermes-agent image (pinned `@244d296`), pre-seeded `HERMES_HOME` on
-   the PVC (init container or first-boot seed), non-interactive boot to
-   connected-idle against the connector, self-provision via
-   `POST /relay/provision` with the pre-shared token. The connector repo's
-   probe-B4 recipe (proven in Docker; see `hermes-agent:local` image and
-   scratchpad demo scripts referenced in its history) is the starting point.
-   This completes real P-AC1 (a user converses via Discord).
+1. **P-AC1 proper — converse via Discord**: layer onto the P-M1 recipe a
+   connector with `HRC_DISCORD_TOKEN`, a chat route (the LM already binds
+   these at session create), and a relay home channel for the agent. All
+   plumbing is proven; this is configuration + a live Discord run.
 2. **P-M3 — chart + terraform**: charts/hermes-platform (connector Deployment
    `Recreate`×1 + buffer PVC with `fsGroup: 65532` — the v0.2.0 image is
    non-root; LM Deployment + Service; RBAC from hack/e2e/rbac.yaml;

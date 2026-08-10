@@ -29,7 +29,9 @@ func connectorImage(t *testing.T) string {
 	candidates := []string{
 		os.Getenv("HLM_E2E_CONNECTOR_IMAGE"),
 		"hrc:e2e",
-		"ghcr.io/nabi-allenby/hermes-relay-connector:v0.2.0",
+		// The connector's release workflow publishes bare-semver tags
+		// (type=semver,pattern={{version}}): 0.2.0, not v0.2.0.
+		"ghcr.io/nabi-allenby/hermes-relay-connector:0.2.0",
 	}
 	for _, img := range candidates {
 		if img == "" {

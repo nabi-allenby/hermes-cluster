@@ -66,6 +66,11 @@ the `extensions.` prefix. RBAC must name both groups.
   `PodNotTerminated`, `PodNotOwned`, `PodStateUnknown`, `NotSuspended`), type `Finished`
   (terminal pod phase; reasons `PodSucceeded`/`PodFailed`).
 - `status.serviceFQDN`, `status.podIPs` — stable in-cluster address of the session.
+- **DNS defaulting (found in P-M1)**: when the template's podTemplate is silent on DNS,
+  the controller renders sandbox pods with `dnsPolicy: None` and public resolvers
+  (`8.8.8.8`, `1.1.1.1`) — cluster service names do not resolve from inside a sandbox.
+  An explicit `dnsPolicy: ClusterFirst` in the template survives the defaulting
+  (hack/p-m1/template.yaml relies on this to reach the connector Service).
 
 ## Ownership / cascade
 

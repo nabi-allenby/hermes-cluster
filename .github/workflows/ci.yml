@@ -62,8 +62,18 @@ jobs:
   e2e:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
+      # Tier 2 pulls the published connector image; without access it skips
+      # cleanly, so this login is best-effort enablement, not a requirement.
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: lifecycle-manager/go.mod

@@ -30,6 +30,9 @@ Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manag
 - ✅ lifecycle-manager: session CRUD API, `/wake`, idle + TTL sweepers,
   connector integration (provision / activity / deprovision / routes),
   reconcile report. Unit + e2e tested (minikube).
+- ✅ P-M1 headless Hermes pod recipe: the real hermes-agent as a sandbox
+  session — PVC home, first-boot seed, boot-time self-provision, graceful
+  suspend, re-auth on resume ([docs/p-m1.md](docs/p-m1.md), `make p-m1`).
 - ⬜ Helm chart (`charts/`), Terraform AKS/EKS modules (`terraform/`) — next.
 
 ## Quickstart (minikube)

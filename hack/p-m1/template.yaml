@@ -1,0 +1,128 @@
+# P-M1 session template: the real hermes-agent image as a sandbox workload.
+#
+# The recipe (docs/p-m1.md):
+#   - HERMES_HOME lives on the PVC (volumeClaimTemplate "home" -> /opt/data).
+#   - First boot on a fresh PVC: the init container seeds the four files a
+#     headless agent needs (.env, auth.json, config.yaml, SOUL.md) from the
+#     Secret `hermes-home-seed` (built by make-seed.sh). Files already on the
+#     PVC are never overwritten -- resume/restart keeps the agent's state.
+#   - Every boot: the main container self-provisions against the connector
+#     (POST /relay/provision, pre-shared token from Secret
+#     `hermes-provision-token`), rewrites the GATEWAY_RELAY_* lines of
+#     $HERMES_HOME/.env, then execs `hermes gateway run`. Re-provisioning
+#     rotates the gateway secret inside the connector's 2-deep verify window,
+#     and provision COALESCE semantics preserve an LM-registered wakeUrl.
+#   - gatewayId == session id == pod name (downward API). On cold start the
+#     pod/sandbox name equals the claim name; warm-pool adoption would break
+#     that equality, so this template is meant for replicas: 0 pools only.
+#
+# The image runs its s6 bootstrap as root and drops to the hermes user, so no
+# pod securityContext here; hardening is a P-M3 (chart) concern.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: hermes-session
+spec:
+  envVarsInjectionPolicy: Disallowed
+  podTemplate:
+    spec:
+      # agent-sandbox v0.5.4 defaults sandbox pods to dnsPolicy None with
+      # public resolvers (8.8.8.8/1.1.1.1) when the template is silent --
+      # cluster service names (our `hrc` connector) don't resolve. Explicit
+      # ClusterFirst survives the defaulting.
+      dnsPolicy: ClusterFirst
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: seed-home
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              # 10000:10000 is the image's baked-in hermes user; the stage2
+              # boot hook chowns only known subdirs, never top-level files,
+              # so the seed must land already owned by hermes.
+              for b in .env auth.json config.yaml SOUL.md; do
+                if [ -e "/seed/$b" ] && [ ! -e "/opt/data/$b" ]; then
+                  cp -L "/seed/$b" "/opt/data/$b"
+                  chmod 600 "/opt/data/$b"
+                  chown 10000:10000 "/opt/data/$b"
+                  echo "seeded $b"
+                fi
+              done
+          volumeMounts:
+            - name: home
+              mountPath: /opt/data
+            - name: seed
+              mountPath: /seed
+              readOnly: true
+      containers:
+        - name: agent
+          # Built from NousResearch/hermes-agent @244d296 (conformance pin);
+          # load into minikube with `minikube image load hermes-agent:local`.
+          image: hermes-agent:local
+          imagePullPolicy: Never
+          # Routed by the image's main-wrapper: `sh` is an executable, so this
+          # runs as the hermes user with the venv active and HOME=/opt/data.
+          args:
+            - sh
+            - -c
+            - |
+              set -eu
+              export HERMES_SESSION_ID="${HERMES_SESSION_ID:-$(hostname)}"
+              python /run/hermes/bootstrap.py
+              # --replace: take over from a stale gateway.lock left on the
+              # PVC by an unclean shutdown (e.g. a hard suspend).
+              exec hermes gateway run --replace
+          env:
+            - name: HERMES_SESSION_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HERMES_RELAY_URL
+              value: http://hrc:8420
+            - name: HERMES_RELAY_BOT_ID
+              value: dev-bot
+          volumeMounts:
+            - name: home
+              mountPath: /opt/data
+            - name: provision
+              mountPath: /run/hermes
+              readOnly: true
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "2", memory: 2Gi}
+      volumes:
+        - name: seed
+          secret:
+            secretName: hermes-home-seed
+        - name: provision
+          projected:
+            defaultMode: 0444
+            sources:
+              - secret:
+                  name: hermes-provision-token
+                  items:
+                    - key: token
+                      path: provision-token
+              - configMap:
+                  name: hermes-bootstrap
+                  items:
+                    - key: bootstrap.py
+                      path: bootstrap.py
+  volumeClaimTemplates:
+    - metadata:
+        name: home
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: hermes-pool
+spec:
+  replicas: 0
+  sandboxTemplateRef:
+    name: hermes-session
