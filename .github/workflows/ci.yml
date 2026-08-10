@@ -54,6 +54,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VERSION=${{ github.ref_name }}
+          # The Dockerfile cross-compiles from $BUILDPLATFORM, so both arches
+          # build natively; the cache keeps the module-download layer warm.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   e2e:
     needs: test
