@@ -22,9 +22,19 @@ type stubConnector struct {
 	enabled      bool
 	provisionErr error
 	provisions   []connector.ProvisionRequest
+	routes       []connector.Route
+	routeErr     error
 	deletes      []string
 	deleteErr    error
 	instances    []connector.Instance
+}
+
+func (s *stubConnector) SetRoute(_ context.Context, r connector.Route) error {
+	if s.routeErr != nil {
+		return s.routeErr
+	}
+	s.routes = append(s.routes, r)
+	return nil
 }
 
 func (s *stubConnector) Enabled() bool { return s.enabled }
@@ -162,6 +172,26 @@ func TestProvisionWiresWakeURLAndRoutes(t *testing.T) {
 	}
 	if p.GatewayID != "s-w" || p.BotID != "bot" || p.Platform != "discord" || len(p.RouteKeys) != 2 {
 		t.Fatalf("provision request: %+v", p)
+	}
+	// Chat bindings are explicit admin-API calls, not provision routeKeys.
+	if len(conn.routes) != 2 || conn.routes[0].ChatID != "c1" || conn.routes[0].Platform != "discord" || conn.routes[0].GatewayID != "s-w" {
+		t.Fatalf("chat routes: %+v", conn.routes)
+	}
+}
+
+func TestRouteBindFailureRollsBack(t *testing.T) {
+	fake := &k8s.Fake{CreateSandboxOnClaim: true}
+	conn := &stubConnector{enabled: true, routeErr: &connector.APIError{Status: 500, Message: "db"}}
+	srv := newTestServer(t, fake, conn, "")
+	resp, _ := doReq(t, "POST", srv.URL+"/v1/sessions", "", `{"id":"s-rb","connector":{"routeKeys":[{"chatId":"c1"}]}}`)
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("want 502, got %d", resp.StatusCode)
+	}
+	if _, err := fake.GetClaim(context.Background(), "s-rb"); err == nil {
+		t.Fatal("claim not rolled back after route-bind failure")
+	}
+	if len(conn.deletes) != 1 || conn.deletes[0] != "s-rb" {
+		t.Fatalf("instance not deprovisioned on rollback: %v", conn.deletes)
 	}
 }
 

@@ -48,7 +48,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusBadRequest, "connector.routeKeys[].chatId is required")
 				return
 			}
-			req.RouteKeys = append(req.RouteKeys, rk.ChatID)
+			req.RouteKeys = append(req.RouteKeys, lifecycle.RouteKey{Platform: rk.Platform, ChatID: rk.ChatID})
 		}
 	}
 

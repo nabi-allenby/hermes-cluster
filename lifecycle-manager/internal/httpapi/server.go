@@ -87,6 +87,9 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		byState[string(sess.State)]++
 	}
 	connectorStatus := map[string]interface{}{"enabled": s.Manager.Connector.Enabled()}
+	if s.Manager.Connector.Enabled() {
+		connectorStatus["reachable"] = s.Manager.Connector.Reachable(r.Context())
+	}
 	if reporter, ok := s.Manager.Connector.(ThrottleReporter); ok {
 		if until, throttled := reporter.ThrottledUntil(); throttled {
 			connectorStatus["throttledUntil"] = until.Unix()

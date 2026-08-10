@@ -41,6 +41,25 @@ func NewHTTPClient(baseURL, adminToken, provisionToken string) *HTTPClient {
 
 func (c *HTTPClient) Enabled() bool { return true }
 
+// Reachable hits GET /metrics without auth. It bypasses do() deliberately:
+// no bearer to fail, so it cannot feed the auth throttle, and it must keep
+// answering while admin calls are locally throttled.
+func (c *HTTPClient) Reachable(ctx context.Context) bool {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/metrics", nil)
+	if err != nil {
+		return false
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+	return resp.StatusCode == http.StatusOK
+}
+
 // ThrottledUntil exposes the current backoff deadline for /status.
 func (c *HTTPClient) ThrottledUntil() (time.Time, bool) {
 	c.mu.Lock()

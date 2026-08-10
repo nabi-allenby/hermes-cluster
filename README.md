@@ -89,7 +89,7 @@ A lost poke degrades to delivery-on-next-resume, never loss.
 | `HLM_TTL` | `0` | global session TTL; `0` disables |
 | `HLM_API_TOKEN(_FILE)` | unset | optional bearer on `/v1/*` (never `/wake`/health) |
 | `HLM_CONNECTOR_ENABLED` | `false` | enable the relay-connector integration |
-| `HLM_CONNECTOR_URL` | — | connector **admin-plane** base URL (note: no `/healthz` there when `HRC_ADMIN_LISTEN` splits planes) |
+| `HLM_CONNECTOR_URL` | — | connector **admin-plane** base URL (no `/healthz` there when `HRC_ADMIN_LISTEN` splits planes; reachability is probed via the unauthenticated `/metrics`) |
 | `HLM_CONNECTOR_ADMIN_TOKEN(_FILE)` | — | bearer for `/admin/v1/*` |
 | `HLM_CONNECTOR_PROVISION_TOKEN(_FILE)` | — | bearer for `POST /relay/provision`; unset ⇒ sessions rely on agent self-provision |
 | `HLM_CONNECTOR_BOT_ID` / `HLM_CONNECTOR_PLATFORM` | — / `discord` | provision parameters |
@@ -117,17 +117,16 @@ e2e tiers: **0** — agent-sandbox suspend/resume substrate (`hack/p-m0/run.sh`)
 **1** — session CRUD/wake/TTL/statelessness, no connector; **2** — real
 connector container, agentless full wake loop via its echo API (provision →
 suspend → buffered echo message → wake poke → resume), deprovision purge,
-orphan reporting. Tier 2 needs the connector's admin-plane surface (instance
-PATCH, routes GET/DELETE, deprovision purge), which is newer than v0.1.0: it
-picks `$HLM_E2E_CONNECTOR_IMAGE`, a locally built `hrc:e2e`, or the next GHCR
-release, and skips when none is available.
+orphan reporting. Tier 2 needs the connector's full admin surface (v0.2.0+):
+it picks `$HLM_E2E_CONNECTOR_IMAGE`, a locally built `hrc:e2e`, or the GHCR
+`v0.2.0` image, and skips when none is available.
 
 ## Pins
 
 | Dependency | Version | Where |
 |---|---|---|
 | agent-sandbox | `v0.5.4` | `hack/minikube-up.sh` (`AGENT_SANDBOX_VERSION`); facts in [docs/p-m0.md](docs/p-m0.md) |
-| hermes-relay-connector | `v0.1.0` (+ admin-plane branch for the full Tier-2 surface) | contract notes in `internal/connector`; bump the pin when the next connector release tags |
+| hermes-relay-connector | `v0.2.0` | full admin surface (activity, PATCH, routes CRUD, deprovision purge) + non-root image, graceful SIGTERM, `/metrics`; contract notes in `internal/connector` |
 | hermes-agent | `@244d296` | consumed indirectly via the connector's conformance gate |
 
 Design: the definitive `hermes-cluster` design doc (external); connector

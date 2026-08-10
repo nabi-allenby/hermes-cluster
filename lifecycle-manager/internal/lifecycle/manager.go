@@ -35,6 +35,12 @@ type Defaults struct {
 	WakeBaseURL string
 }
 
+// RouteKey identifies one chat to bind to the session's gateway.
+type RouteKey struct {
+	Platform string // empty = the configured default platform
+	ChatID   string
+}
+
 // CreateRequest is the input to Create.
 type CreateRequest struct {
 	ID                 string
@@ -42,9 +48,10 @@ type CreateRequest struct {
 	TTLSeconds         *int64
 	IdleTimeoutSeconds *int64
 	DisplayName        string
-	// RouteKeys, when non-nil, requests connector provisioning with these
-	// chat bindings ("<chatId>" strings on the configured platform).
-	RouteKeys []string
+	// RouteKeys are chat bindings created via the connector's admin routes
+	// API (chat_routes). Provision's own routeKeys field feeds a different
+	// table (the per-gateway routing row) — both are wired on create.
+	RouteKeys []RouteKey
 	// Connector requests provisioning even with no routes yet.
 	Connector bool
 }
@@ -97,16 +104,39 @@ func (m *Manager) Create(ctx context.Context, req CreateRequest) (*session.Sessi
 	}
 
 	if useConnector {
+		chatIDs := make([]string, 0, len(req.RouteKeys))
+		for _, rk := range req.RouteKeys {
+			chatIDs = append(chatIDs, rk.ChatID)
+		}
 		_, err := m.Connector.Provision(ctx, connector.ProvisionRequest{
 			GatewayID:   id,
 			Platform:    m.Defaults.Platform,
 			BotID:       m.Defaults.BotID,
-			RouteKeys:   req.RouteKeys,
+			RouteKeys:   chatIDs,
 			WakeURL:     m.Defaults.WakeBaseURL + "/wake/" + id,
 			DisplayName: req.DisplayName,
 		})
+		if err == nil {
+			// Chat bindings live in a separate table from provision's
+			// routing row; each one is an explicit admin-API call.
+			for _, rk := range req.RouteKeys {
+				platform := rk.Platform
+				if platform == "" {
+					platform = m.Defaults.Platform
+				}
+				if err = m.Connector.SetRoute(ctx, connector.Route{
+					Platform: platform, ChatID: rk.ChatID, GatewayID: id,
+				}); err != nil {
+					err = fmt.Errorf("binding chat %s/%s: %w", platform, rk.ChatID, err)
+					break
+				}
+			}
+		}
 		if err != nil {
-			m.Log.Error("provision failed; rolling back claim", "session", id, "error", err)
+			m.Log.Error("provision failed; rolling back", "session", id, "error", err)
+			if delErr := m.Connector.DeleteInstance(ctx, id); delErr != nil && !errors.Is(delErr, connector.ErrNotFound) {
+				m.Log.Warn("rollback deprovision failed", "session", id, "error", delErr)
+			}
 			if delErr := m.K8s.DeleteClaim(ctx, id); delErr != nil && !errors.Is(delErr, k8s.ErrNotFound) {
 				m.Log.Error("rollback delete failed; claim orphaned", "session", id, "error", delErr)
 			}

@@ -100,6 +100,9 @@ type Route struct {
 // Client is the connector surface the lifecycle-manager consumes.
 type Client interface {
 	Enabled() bool
+	// Reachable probes the admin plane via the unauthenticated GET /metrics
+	// (v0.2.0+; the admin listener has no /healthz). Never throttle-gated.
+	Reachable(ctx context.Context) bool
 	Provision(ctx context.Context, req ProvisionRequest) (*ProvisionResult, error)
 	ListInstances(ctx context.Context) ([]Instance, error)
 	PatchInstance(ctx context.Context, gatewayID string, patch InstancePatch) error
@@ -115,7 +118,8 @@ type Client interface {
 // Disabled is the no-op Client used when the integration is off.
 type Disabled struct{}
 
-func (Disabled) Enabled() bool { return false }
+func (Disabled) Enabled() bool                  { return false }
+func (Disabled) Reachable(context.Context) bool { return false }
 func (Disabled) Provision(context.Context, ProvisionRequest) (*ProvisionResult, error) {
 	return nil, ErrDisabled
 }

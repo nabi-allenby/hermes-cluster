@@ -24,9 +24,8 @@ const (
 // or a locally built hrc image.
 func connectorImage(t *testing.T) string {
 	t.Helper()
-	// Tier 2 needs the admin-plane surface (instance PATCH, routes GET/
-	// DELETE, deprovision purge), which is newer than v0.1.0 — prefer a
-	// locally built image from the connector's admin-plane branch.
+	// Tier 2 needs the connector's full admin surface (instance PATCH,
+	// routes GET/DELETE, deprovision purge) — v0.2.0 or newer.
 	candidates := []string{
 		os.Getenv("HLM_E2E_CONNECTOR_IMAGE"),
 		"hrc:e2e",

@@ -90,7 +90,9 @@ cooldown-gated poke retries; a lost poke degrades to delivery-on-next-resume).
 {
   "sessions": 3,
   "byState": {"Ready": 2, "Suspended": 1},
-  "connector": {"enabled": true, "throttledUntil": 1754800065},
+  "connector": {"enabled": true, "reachable": true, "throttledUntil": 1754800065},
+  // "reachable" probes the connector's unauthenticated GET /metrics (v0.2.0+),
+  // so it keeps answering even while admin calls are throttle-backed-off.
   "reconcile": {
     "claimsWithoutInstances": [],   // provisioned sessions missing on the connector
     "instancesWithoutClaims": [],   // connector rows with no managed claim (report-only)

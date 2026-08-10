@@ -85,6 +85,11 @@ func (f *fakeConnector) handler() http.Handler {
 	mux.HandleFunc("DELETE /admin/v1/routes/{platform}/{chatId}", auth(func() string { return f.adminToken }, func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]bool{"deleted": true})
 	}))
+	// v0.2.0: unauthenticated Prometheus exposition on the admin plane.
+	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+		_, _ = w.Write([]byte("# TYPE hrc_connected_gateways gauge\nhrc_connected_gateways 0\n"))
+	})
 	return mux
 }
 
@@ -188,6 +193,26 @@ func TestAPIErrorCarriesBody(t *testing.T) {
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusUnauthorized || apiErr.Message != "unauthorized" {
 		t.Fatalf("want APIError{401 unauthorized}, got %v", err)
+	}
+}
+
+func TestReachableProbesMetricsEvenWhileThrottled(t *testing.T) {
+	f, c := newFixture(t)
+	if !c.Reachable(context.Background()) {
+		t.Fatal("connector up but Reachable=false")
+	}
+	// Trip the local throttle guard: reachability must keep answering — it
+	// is unauthenticated and cannot feed the auth throttle.
+	f.throttled.Store(true)
+	if _, err := c.ListInstances(context.Background()); !errors.Is(err, ErrThrottled) {
+		t.Fatalf("expected ErrThrottled, got %v", err)
+	}
+	f.throttled.Store(false)
+	if !c.Reachable(context.Background()) {
+		t.Fatal("Reachable must bypass the local throttle guard")
+	}
+	if c2 := NewHTTPClient("http://127.0.0.1:1", "x", ""); c2.Reachable(context.Background()) {
+		t.Fatal("unreachable connector reported reachable")
 	}
 }
 
