@@ -308,11 +308,16 @@ moved to the private instancing repo
 tofu state (28 resources — the running AKS deployment is managed from
 there now). Git history here scanned clean for secrets (22 commits).
 
+Repo governance (2026-08-11): **this repo is PUBLIC** with `main`
+protected (no force-push/deletion, CI `test` required; direct pushes
+allowed). hermes-private-cluster stays private and **deliberately
+unprotected** — GitHub Free has no protection on private repos; accepted.
+
 **Not done:**
 
 1. **Org-admin visibility clicks**: GHCR packages `lifecycle-manager` +
    `charts/hermes-platform` → public (`hermes-agent` GHCR package is
-   obsolete — deletable); optionally this repo → public (history is clean).
+   obsolete — deletable).
 2. **Reconcile live AKS drift** via the instancing repo (next apply moves
    hlm to the GHCR 0.1.0 image + official agent image, then drop the tmp
    ACR `hermes-tmp` RG and the ACR_* repo secrets here).
