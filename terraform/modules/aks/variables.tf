@@ -28,7 +28,7 @@ variable "system_vm_size" {
 variable "agent_vm_size" {
   description = "Spot VM for agent sessions. amd64 — the agent image must match. (Design says D2as_v5; not every subscription offers every gen — check `az vm list-skus`.)"
   type        = string
-  default     = "Standard_D2as_v7" # 2 vCPU / 8 GB
+  default     = "Standard_D2s_v6" # 2 vCPU / 8 GB (Intel; AMD 'as' line had no westeurope Spot capacity 2026-08)
 }
 
 variable "agent_pool_priority" {
