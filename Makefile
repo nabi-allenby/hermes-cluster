@@ -1,51 +1,60 @@
-LM_DIR        := lifecycle-manager
-IMAGE         := ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager
-VERSION       ?= dev
+LM_DIR           := lifecycle-manager
+IMAGE            := ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager
+VERSION          ?= dev
 MINIKUBE_PROFILE ?= minikube
 
-.PHONY: build test lint vet image image-load minikube-up p-m0 p-m1 chart-lint e2e run-local clean
+.PHONY: help build test vet lint image image-load minikube-up \
+        drill-substrate drill-agent drill-live \
+        chart-lint e2e run-local clean
 
-build:
+help: ## list targets
+	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
+
+build: ## compile the lifecycle-manager
 	cd $(LM_DIR) && go build ./...
 
-test:
+test: ## unit tests
 	cd $(LM_DIR) && go test ./...
 
 vet:
 	cd $(LM_DIR) && go vet ./...
 
-lint: vet
+lint: vet ## golangci-lint (falls back to go vet)
 	@command -v golangci-lint >/dev/null 2>&1 && (cd $(LM_DIR) && golangci-lint run) || echo "golangci-lint not installed; ran go vet only"
 
-image:
+image: ## build the lifecycle-manager image ($(IMAGE):$(VERSION))
 	docker build -t $(IMAGE):$(VERSION) --build-arg VERSION=$(VERSION) $(LM_DIR)
 
-image-load: image
+image-load: image ## build + load into minikube
 	minikube -p $(MINIKUBE_PROFILE) image load $(IMAGE):$(VERSION)
 
-minikube-up:
+minikube-up: ## start minikube + install pinned agent-sandbox
 	hack/minikube-up.sh
 
-p-m0: minikube-up
+drill-substrate: minikube-up ## claim -> suspend -> PVC survives -> resume
 	hack/drills/0-substrate/run.sh
 
-# P-M1 needs images hermes-agent:local and hrc:e2e in the local docker daemon
-# plus a seed home dir for make-seed.sh (see docs/p-m1.md).
-p-m1: minikube-up
+# Needs images hermes-agent + hrc in the local docker daemon and a seed home
+# dir for make-seed.sh (see hack/README.md).
+drill-agent: minikube-up ## real agent session: boot -> connect -> suspend -> wake -> drain
 	hack/drills/1-agent-session/run.sh
 
-chart-lint:
+# Needs a Discord bot token and PAC1_BOT_ID (see hack/README.md).
+drill-live: minikube-up ## the chart fronting your real Discord bot
+	hack/drills/2-live-discord/run.sh
+
+chart-lint: ## helm lint + render check
 	helm lint charts/hermes-platform
 	helm template t charts/hermes-platform >/dev/null
 
-
-# e2e expects a running minikube with agent-sandbox installed (make minikube-up).
-e2e:
+# Expects a running minikube with agent-sandbox installed (make minikube-up).
+e2e: ## e2e tiers 1-2 (minikube; +docker for the connector tier)
 	cd $(LM_DIR) && go test -tags e2e -count=1 -timeout 20m ./e2e/...
 
-# Run the lifecycle-manager locally against the minikube kubeconfig.
-run-local:
-	cd $(LM_DIR) && HLM_WARM_POOL=$${HLM_WARM_POOL:-hello-world} HLM_NAMESPACE=$${HLM_NAMESPACE:-default} \
+# Run the lifecycle-manager locally against the minikube kubeconfig
+# (kubectl apply -f hack/e2e/template.yaml provides the e2e-pool).
+run-local: ## run the LM locally against your kubeconfig
+	cd $(LM_DIR) && HLM_WARM_POOL=$${HLM_WARM_POOL:-e2e-pool} HLM_NAMESPACE=$${HLM_NAMESPACE:-default} \
 		HLM_LOG_FORMAT=text go run ./cmd/lifecycle-manager
 
 clean:

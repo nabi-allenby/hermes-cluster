@@ -44,7 +44,7 @@ session:
   warmPoolName: hermes-pool
   warmReplicas: 0
   # First-boot seed Secret with keys: .env, auth.json, config.yaml, SOUL.md
-  # (see hack/p-m1/make-seed.sh). Holds the LLM key — created out of band.
+  # (see hack/drills/1-agent-session/make-seed.sh). Holds the LLM key — created out of band.
   homeSeedSecret: hermes-home-seed
   botId: dev-bot
   home:

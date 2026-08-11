@@ -1,4 +1,4 @@
-# The P-M1 session recipe (docs/p-m1.md) as chart resources. Requires the
+# The session recipe (docs/architecture.md) as chart resources. Requires the
 # agent-sandbox CRDs/controller (installed by the terraform platform module
 # or hack/minikube-up.sh) — they are deliberately NOT part of this chart.
 apiVersion: v1
@@ -19,7 +19,7 @@ spec:
     spec:
       # agent-sandbox v0.5.4 defaults sandbox pods to dnsPolicy None with
       # public resolvers when the template is silent; ClusterFirst is
-      # required to resolve the connector Service (docs/p-m0.md).
+      # required to resolve the connector Service (docs/agent-sandbox.md).
       dnsPolicy: ClusterFirst
       terminationGracePeriodSeconds: {{ .Values.session.terminationGracePeriodSeconds }}
       {{- with .Values.session.nodeSelector }}

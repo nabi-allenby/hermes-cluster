@@ -1,4 +1,4 @@
-# P-M0 — substrate facts: agent-sandbox pinned at v0.5.4
+# agent-sandbox substrate facts (pinned v0.5.4)
 
 Everything the lifecycle-manager assumes about kubernetes-sigs/agent-sandbox, read off the
 **v0.5.4** release (2026-07-30) manifest (`sandbox-with-extensions.yaml`) and controller source
@@ -42,10 +42,9 @@ the `extensions.` prefix. RBAC must name both groups.
 - `spec.additionalPodMetadata.{labels,annotations}` — per-claim pod metadata (the only
   per-session customization we use).
 - `spec.env[]` — subject to the template's `envVarsInjectionPolicy`; we set it `Disallowed`
-  in templates and never use claim env (design §4.3).
+  in templates and never use claim env.
 - `spec.lifecycle.{shutdownPolicy(default Retain|Delete|DeleteForeground), shutdownTime,
-  ttlSecondsAfterFinished}` — **never set by the lifecycle-manager** (design §4.4: TTL has
-  exactly one code path, ours).
+  ttlSecondsAfterFinished}` — **never set by the lifecycle-manager** — session TTL has exactly one code path, the lifecycle-manager's.
 - `status.conditions[]` — standard metav1 conditions; type `Ready` mirrors the bound
   Sandbox's `Ready` condition (reasons seen in source: `WarmPoolNotFound`,
   `TemplateNotFound`, `AdoptionConflict`, `SandboxNotReady`, `ReconcilerError`, ...).
@@ -66,7 +65,7 @@ the `extensions.` prefix. RBAC must name both groups.
   `PodNotTerminated`, `PodNotOwned`, `PodStateUnknown`, `NotSuspended`), type `Finished`
   (terminal pod phase; reasons `PodSucceeded`/`PodFailed`).
 - `status.serviceFQDN`, `status.podIPs` — stable in-cluster address of the session.
-- **DNS defaulting (found in P-M1)**: when the template's podTemplate is silent on DNS,
+- **DNS defaulting**: when the template's podTemplate is silent on DNS,
   the controller renders sandbox pods with `dnsPolicy: None` and public resolvers
   (`8.8.8.8`, `1.1.1.1`) — cluster service names do not resolve from inside a sandbox.
   An explicit `dnsPolicy: ClusterFirst` in the template survives the defaulting
@@ -77,7 +76,7 @@ the `extensions.` prefix. RBAC must name both groups.
 `SandboxClaim` → controller-owns → `Sandbox` → controller-owns → Pod, Service, and PVCs.
 PVCs are created as `<volumeClaimTemplate.name>-<sandboxName>` with an owner reference to
 the Sandbox. Deleting the claim therefore cascades the sandbox, pod, service **and PVCs**
-(P-AC3's cascade requirement) via normal garbage collection.
+via normal garbage collection.
 
 ## Lifecycle-manager RBAC (both groups)
 
@@ -86,9 +85,9 @@ the Sandbox. Deleting the claim therefore cascades the sandbox, pod, service **a
 | `extensions.agents.x-k8s.io` | `sandboxclaims` | get, list, watch, create, delete, patch |
 | `agents.x-k8s.io` | `sandboxes` | get, list, watch, patch |
 
-Nothing else — no pods, secrets, or PVCs (design §4.2).
+Nothing else — no pods, secrets, or PVCs.
 
-## Derived session state (design §4.3), from the two objects
+## Derived session state, from the two objects
 
 | operatingMode | Sandbox conditions | Derived state |
 |---|---|---|
@@ -99,7 +98,7 @@ Nothing else — no pods, secrets, or PVCs (design §4.2).
 | `Suspended` | `Suspended` not True | `Suspending` |
 | any | claim `deletionTimestamp` set | `Terminating` |
 
-## Timings (minikube, docker driver, hostpath storage; `hack/drills/0-substrate/run.sh`, 2026-08-10)
+## Timings (minikube, docker driver, hostpath storage; `hack/drills/0-substrate/run.sh`)
 
 | Step | Measured |
 |---|---|
@@ -111,6 +110,5 @@ Nothing else — no pods, secrets, or PVCs (design §4.2).
 The resume figure is the k8s half of the wake path: on this substrate the design's
 ≤30 s wake target has ~27 s of headroom before agent boot time.
 
-> Cloud CSI attach latency (the design's open wake-budget variable, §5.2): **measured
-> 2026-08-11 on AKS** — patch → pod Ready **17 s** (managed-csi attach ≈ 15 s of it),
-> +5 s to gateway reconnect. See docs/p-ac4.md.
+> Cloud comparison (AKS, managed-csi): patch → pod Ready **17 s** (disk attach ≈ 15 s
+> of it), +5 s to gateway reconnect.

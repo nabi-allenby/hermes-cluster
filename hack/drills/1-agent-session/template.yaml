@@ -2,7 +2,7 @@
 # of this recipe — charts/hermes-platform/templates/session-template.yaml is
 # the canonical one; keep them in sync).
 #
-# The recipe (docs/p-m1.md):
+# The recipe (docs/architecture.md, 'Session pod boot'):
 #   - HERMES_HOME lives on the PVC (volumeClaimTemplate "home" -> /opt/data).
 #   - First boot on a fresh PVC: the init container seeds the four files a
 #     headless agent needs (.env, auth.json, config.yaml, SOUL.md) from the

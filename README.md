@@ -30,12 +30,12 @@ Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manag
 
 ## Proven, with numbers
 
-Every acceptance criterion has passed **live** (full run records in
-[docs/](docs/)):
+Every acceptance criterion has passed **live** (measured reference:
+[docs/architecture.md](docs/architecture.md)):
 
 | What | Measured |
 |---|---|
-| Discord DM → agent reply, agent pod on AKS | end-to-end conversation ([docs/p-ac4.md](docs/p-ac4.md)) |
+| Discord DM → agent reply, agent pod on AKS | end-to-end conversation |
 | Idle → suspended to disk-only | 8 s (graceful `going_idle`) |
 | DM while suspended → wake → connected | **~22 s** on AKS (managed-csi attach ≈ 15 s); ~6 s on minikube |
 | Decommission (`DELETE`) → connector purge + pod/PVC cascade | ~6 s |
@@ -68,8 +68,8 @@ multi-arch [`nousresearch/hermes-agent`](https://hub.docker.com/r/nousresearch/h
 
 ```bash
 make minikube-up      # minikube + agent-sandbox v0.5.4
-make p-m0             # substrate drill: claim → suspend → PVC survives → resume
-make p-m1             # full-agent drill: boot → connect → suspend → wake → drain
+make drill-substrate  # claim → suspend → PVC survives → resume
+make drill-agent      # full agent: boot → connect → suspend → wake → drain
 make test             # unit suite
 make e2e              # e2e tiers 1-2 vs minikube (+docker)
 ```
@@ -137,15 +137,15 @@ the sweep cadence is the retry loop.
 |---|---|
 | `lifecycle-manager/` | the Go service (unit + e2e tests) |
 | `charts/hermes-platform/` | the platform chart (published as OCI on `chart-v*` tags) |
-| `docs/` | HTTP API + substrate facts + measured run records |
+| `docs/` | architecture, HTTP API, agent-sandbox substrate facts |
 | `hack/` | minikube bootstrap, e2e fixtures, reproducible drills ([hack/README.md](hack/README.md)) |
-| `HANDOVER.md` | full engineering log: decisions, surprises, open items |
+| `docs/architecture.md` | the system design in one page |
 
 ## Pins
 
 | Dependency | Version | Notes |
 |---|---|---|
-| agent-sandbox | `v0.5.4` | facts + measured timings in [docs/p-m0.md](docs/p-m0.md); bump ⇒ re-verify that file |
+| agent-sandbox | `v0.5.4` | facts + measured timings in [docs/agent-sandbox.md](docs/agent-sandbox.md); bump ⇒ re-verify that file |
 | hermes-relay-connector | `0.2.0` | public on GHCR; contract notes in `internal/connector` |
 | hermes-agent | `v2026.8.3` (≈ `@244d296`) | official Docker Hub image, multi-arch; relay contract conformance-verified at the pin |
 

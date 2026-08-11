@@ -11,7 +11,7 @@ echo-buffer → wake <2 s → drain → decommission cascade).
 
 1. **agent-sandbox CRDs + controller** (pinned v0.5.4) — install the
    upstream release manifest (`hack/minikube-up.sh` does it for minikube;
-   see docs/p-m0.md for the manifest URL).
+   see docs/agent-sandbox.md for the manifest URL).
 2. **Secret `hermes-home-seed`** — first-boot `HERMES_HOME`: keys `.env`
    (LLM key), `auth.json`, `config.yaml`, `SOUL.md`. Build locally with
    `hack/drills/1-agent-session/make-seed.sh`.
@@ -42,4 +42,4 @@ Dev-loop timings: `--set connector.wakeCooldownSeconds=5 --set lifecycleManager.
   does; plain minikube's kindnet does not — inert there).
 - The `dnsPolicy: ClusterFirst` in the template is load-bearing:
   agent-sandbox v0.5.4 otherwise renders sandbox pods with public resolvers
-  and cluster Services never resolve (docs/p-m0.md).
+  and cluster Services never resolve (docs/agent-sandbox.md).
