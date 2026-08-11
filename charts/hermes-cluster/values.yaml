@@ -33,7 +33,7 @@ connector:
     limits: {cpu: 500m, memory: 256Mi}
 
 lifecycleManager:
-  image: ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager:0.1.0
+  image: ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager:0.2.0
   imagePullPolicy: IfNotPresent
   listenPort: 8080
   sweepInterval: 60s

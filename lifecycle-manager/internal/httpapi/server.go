@@ -50,6 +50,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /v1/sessions", s.auth(s.handleListSessions))
 	mux.Handle("GET /v1/sessions/{id}", s.auth(s.handleGetSession))
 	mux.Handle("DELETE /v1/sessions/{id}", s.auth(s.handleDeleteSession))
+	mux.Handle("POST /v1/sessions/{id}/restart", s.auth(s.handleRestartSession))
 	return mux
 }
 

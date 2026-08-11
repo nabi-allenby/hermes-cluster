@@ -105,6 +105,18 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleRestartSession(w http.ResponseWriter, r *http.Request) {
+	err := s.Manager.Restart(r.Context(), r.PathValue("id"))
+	switch {
+	case err == nil:
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	case errors.Is(err, k8s.ErrNotFound):
+		writeError(w, http.StatusNotFound, "unknown session")
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
 func (s *Server) handleWake(w http.ResponseWriter, r *http.Request) {
 	err := s.Manager.Wake(r.Context(), r.PathValue("session"))
 	switch {

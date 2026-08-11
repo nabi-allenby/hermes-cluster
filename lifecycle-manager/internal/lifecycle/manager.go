@@ -184,6 +184,26 @@ func (m *Manager) Wake(ctx context.Context, id string) error {
 	return m.K8s.PatchSandboxOperatingMode(ctx, sandboxName, "Running")
 }
 
+// Restart cycles the session's pod without touching the claim or its PVC:
+// a suspend immediately followed by a wake. The agent-sandbox controller
+// tears the pod down and recreates it fresh from the current template
+// (env, image — whatever's live now), re-running boot-time self-provision;
+// the home directory PVC reattaches untouched. Errors from the wake half
+// are returned; a failed suspend half means the sandbox was already not
+// running, which wake alone still recovers from (idempotent).
+func (m *Manager) Restart(ctx context.Context, id string) error {
+	claim, err := m.K8s.GetClaim(ctx, id)
+	if err != nil {
+		return err
+	}
+	sandboxName := claim.SandboxName
+	if sandboxName == "" {
+		sandboxName = claim.Name
+	}
+	_ = m.K8s.PatchSandboxOperatingMode(ctx, sandboxName, "Suspended")
+	return m.K8s.PatchSandboxOperatingMode(ctx, sandboxName, "Running")
+}
+
 // Decommission is the only session-destruction code path (used by both
 // DELETE /v1/sessions/{id} and the TTL sweeper). Connector purge runs first;
 // if it fails for any reason other than "already gone", the claim is kept so

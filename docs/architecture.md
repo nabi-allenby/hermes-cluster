@@ -141,6 +141,7 @@ both API groups agent-sandbox uses — nothing else, no pods or secrets.
 ## API surface
 
 `POST/GET /v1/sessions` · `GET/DELETE /v1/sessions/{id}` ·
+`POST /v1/sessions/{id}/restart` ·
 `GET|POST /wake/{session}` · `GET /healthz|/readyz|/status`. Optional bearer
 guards `/v1/*` only — `/wake` stays unauthenticated by design (the poke is
 a bare GET). Full reference: [api.md](api.md).

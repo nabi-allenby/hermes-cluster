@@ -218,6 +218,35 @@ func TestWakeIsIdempotentAndUnauthenticated(t *testing.T) {
 	}
 }
 
+func TestRestartCyclesTheSandboxWithoutTouchingTheClaim(t *testing.T) {
+	fake := &k8s.Fake{}
+	fake.AddSession("s-r", time.Now(), nil, "Running", true)
+	srv := newTestServer(t, fake, connector.Disabled{}, "secret-token")
+
+	resp, body := doReq(t, "POST", srv.URL+"/v1/sessions/s-r/restart", "secret-token", "")
+	if resp.StatusCode != http.StatusOK || body["ok"] != true {
+		t.Fatalf("restart: %d %v", resp.StatusCode, body)
+	}
+	sb, err := fake.GetSandbox(context.Background(), "s-r")
+	if err != nil || sb.OperatingMode != "Running" {
+		t.Fatalf("sandbox not running after restart: %+v err=%v", sb, err)
+	}
+	if _, err := fake.GetClaim(context.Background(), "s-r"); err != nil {
+		t.Fatalf("claim should survive a restart: %v", err)
+	}
+
+	// Guarded like the rest of /v1 — unlike /wake.
+	resp, _ = doReq(t, "POST", srv.URL+"/v1/sessions/s-r/restart", "", "")
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated restart: want 401, got %d", resp.StatusCode)
+	}
+
+	resp, _ = doReq(t, "POST", srv.URL+"/v1/sessions/unknown/restart", "secret-token", "")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown session restart: want 404, got %d", resp.StatusCode)
+	}
+}
+
 func TestAPITokenGuardsV1Only(t *testing.T) {
 	fake := &k8s.Fake{CreateSandboxOnClaim: true}
 	srv := newTestServer(t, fake, connector.Disabled{}, "secret-token")

@@ -69,6 +69,16 @@ retrying (or the next TTL sweep) picks it back up.
 
 `200 {"deleted": true, "deprovisioned": bool}` · `404` · `502` · `503`.
 
+### `POST /v1/sessions/{id}/restart`
+
+Non-destructive pod cycle: suspend immediately followed by wake. The claim
+and its PVC (home directory) are untouched — only the pod is torn down and
+recreated fresh from whatever's live now (image, env), re-running boot-time
+self-provision. Useful when a pod is stuck or was orphaned by an
+operator-side change (e.g. the connector's URL changed).
+
+`200 {"ok": true}` · `404 unknown session`.
+
 ## Wake
 
 ### `GET|POST /wake/{session}`
