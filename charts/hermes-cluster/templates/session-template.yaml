@@ -82,6 +82,35 @@ spec:
               mountPath: /run/hermes
               readOnly: true
           resources: {{- toYaml .Values.session.resources | nindent 12 }}
+        {{- if .Values.session.serve.enabled }}
+        # Serve container (issue #2): the same image running `hermes serve`
+        # against the shared home. Its /api/status is the agent-reported
+        # activity surface the lifecycle-manager's Idle v2 sweeper polls
+        # (public even when the auth gate is on); the cron schedule behind
+        # the gate is read with the basic-auth credential. Upstream refuses
+        # a non-loopback bind without an auth provider, so the credential is
+        # mandatory even though no human ever logs in with it.
+        - name: serve
+          image: {{ .Values.session.image }}
+          imagePullPolicy: {{ .Values.session.imagePullPolicy }}
+          args:
+            - sh
+            - -c
+            - exec hermes serve --host 0.0.0.0 --port {{ .Values.session.serve.port }}
+          env:
+            - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: username}
+            - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
+          ports:
+            - containerPort: {{ .Values.session.serve.port }}
+          volumeMounts:
+            - name: home
+              mountPath: /opt/data
+          resources: {{- toYaml .Values.session.serve.resources | nindent 12 }}
+        {{- end }}
       volumes:
         - name: seed
           secret:

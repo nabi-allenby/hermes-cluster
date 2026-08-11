@@ -3,6 +3,7 @@ package sweeper
 import (
 	"time"
 
+	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/agent"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/connector"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/k8s"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/session"
@@ -14,6 +15,13 @@ type IdleInput struct {
 	Instance    *connector.Instance // nil = no instance for this gatewayId
 	IdleTimeout time.Duration       // effective (annotation override applied)
 	Now         time.Time
+
+	// Idle v2 (issue #2): agent-reported activity. The connector only sees
+	// relay traffic; cron- and desktop-initiated work is invisible to it,
+	// so relay silence alone must never suspend.
+	AgentEnabled bool          // status polling configured; false = Idle v1 guards only
+	Agent        *agent.Report // latest /api/status observation; nil = unreachable/unknown
+	QuietSince   time.Time     // start of LM-observed continuous agent quiet; zero = unknown
 }
 
 // DecideIdle is the conservative suspend gate ("never
@@ -32,6 +40,15 @@ type IdleInput struct {
 //  7. the newer of the two timestamps is older than the idle timeout
 //  8. nothing is buffered — buffered work means the session is about to be
 //     busy (and a suspend would race the wake poke)
+//
+// Idle v2 guards (only when status polling is enabled; all fail closed):
+//
+//  9. the pod's /api/status was reachable this sweep — unreachable is NOT idle
+//  10. the agent reports no in-flight turns and no recently-active sessions
+//  11. the LM has observed continuous agent quiet for the full idle timeout —
+//     the status readout has no last-activity timestamp, so the sweeper keeps
+//     its own quiet clock (reset by any busy or unreachable observation, and
+//     by LM restarts: a fresh LM re-earns the full timeout, conservatively)
 func DecideIdle(in IdleInput) bool {
 	if in.IdleTimeout <= 0 {
 		return false
@@ -64,5 +81,36 @@ func DecideIdle(in IdleInput) bool {
 	if in.Now.Sub(time.Unix(last, 0)) < in.IdleTimeout {
 		return false
 	}
-	return inst.BufferedCount == 0
+	if inst.BufferedCount != 0 {
+		return false
+	}
+	if in.AgentEnabled {
+		if in.Agent == nil || in.Agent.Busy() {
+			return false
+		}
+		if in.QuietSince.IsZero() || in.Now.Sub(in.QuietSince) < in.IdleTimeout {
+			return false
+		}
+	}
+	return true
+}
+
+// DecideCron is the cron half of the suspend gate (issue #2, Wake v2
+// trigger 3). Given the earliest upcoming cron fire (nil = none scheduled),
+// it returns whether suspending is allowed and, if so, the wake-at time to
+// stamp on the claim (nil = no scheduled wake needed).
+//
+//   - a fire inside the idle horizon means the pod would need waking almost
+//     immediately — suspending would be churn, so don't
+//   - a fire beyond the horizon allows the suspend, scheduled to wake
+//     bootMargin before the fire so the gateway is up when cron ticks
+func DecideCron(nextFire *time.Time, now time.Time, horizon, bootMargin time.Duration) (ok bool, wakeAt *time.Time) {
+	if nextFire == nil {
+		return true, nil
+	}
+	if nextFire.Sub(now) <= horizon {
+		return false, nil
+	}
+	t := nextFire.Add(-bootMargin)
+	return true, &t
 }

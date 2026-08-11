@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/agent"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/connector"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/k8s"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/session"
@@ -60,12 +61,23 @@ type CreateRequest struct {
 type Manager struct {
 	K8s       k8s.Client
 	Connector connector.Client
-	Defaults  Defaults
-	Log       *slog.Logger
+	// Agent polls session pods' /api/status for Idle v2. May be nil
+	// (treated as disabled) so existing constructions stay valid.
+	Agent    agent.Client
+	Defaults Defaults
+	Log      *slog.Logger
 
 	mu          sync.Mutex
 	instances   map[string]connector.Instance // by gatewayId
 	instancesAt time.Time
+}
+
+// AgentClient returns the status poller, never nil.
+func (m *Manager) AgentClient() agent.Client {
+	if m.Agent == nil {
+		return agent.Disabled{}
+	}
+	return m.Agent
 }
 
 // Create makes the claim and, when requested, provisions the connector
@@ -181,7 +193,18 @@ func (m *Manager) Wake(ctx context.Context, id string) error {
 	if sandboxName == "" {
 		sandboxName = claim.Name
 	}
-	return m.K8s.PatchSandboxOperatingMode(ctx, sandboxName, "Running")
+	if err := m.K8s.PatchSandboxOperatingMode(ctx, sandboxName, "Running"); err != nil {
+		return err
+	}
+	// Any wake satisfies a pending scheduled wake; clear it so the sweeper
+	// doesn't re-fire a stale one after the next suspend. Best-effort: a
+	// leftover annotation only causes a redundant (idempotent) wake.
+	if claim.Annotations[session.AnnoWakeAt] != "" {
+		if err := m.K8s.PatchClaimAnnotations(ctx, claim.Name, map[string]*string{session.AnnoWakeAt: nil}); err != nil {
+			m.Log.Warn("wake-at clear failed", "session", claim.Name, "error", err)
+		}
+	}
+	return nil
 }
 
 // Restart cycles the session's pod without touching the claim or its PVC:

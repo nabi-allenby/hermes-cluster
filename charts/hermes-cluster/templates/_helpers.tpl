@@ -13,3 +13,11 @@
 {{- define "hc.wakeBaseURL" -}}
 {{- printf "http://%s-lifecycle-manager:%d" .Release.Name (int .Values.lifecycleManager.listenPort) -}}
 {{- end -}}
+
+{{- define "hc.dashboardAuthSecretName" -}}
+{{- if .Values.session.serve.existingAuthSecret -}}
+{{- .Values.session.serve.existingAuthSecret -}}
+{{- else -}}
+{{- printf "%s-session-dashboard-auth" .Release.Name -}}
+{{- end -}}
+{{- end -}}

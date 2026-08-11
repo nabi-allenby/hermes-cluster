@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/agent"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/config"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/connector"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/httpapi"
@@ -34,7 +35,8 @@ func main() {
 	log := newLogger(cfg)
 	log.Info("lifecycle-manager starting", "version", version,
 		"namespace", cfg.Namespace, "warmPool", cfg.WarmPool,
-		"connector", cfg.ConnectorEnabled, "sweepInterval", cfg.SweepInterval)
+		"connector", cfg.ConnectorEnabled, "sweepInterval", cfg.SweepInterval,
+		"statusPolling", cfg.StatusEnabled)
 
 	k8sClient, err := k8s.NewDynamicClient(k8s.Options{
 		Namespace: cfg.Namespace,
@@ -52,9 +54,15 @@ func main() {
 		conn = connector.NewHTTPClient(cfg.ConnectorURL, cfg.ConnectorAdminToken, cfg.ConnectorProvisionToken)
 	}
 
+	var agentCli agent.Client = agent.Disabled{}
+	if cfg.StatusEnabled {
+		agentCli = agent.NewHTTPClient(cfg.StatusPort, cfg.StatusTimeout, cfg.StatusUsername, cfg.StatusPassword)
+	}
+
 	manager := &lifecycle.Manager{
 		K8s:       k8sClient,
 		Connector: conn,
+		Agent:     agentCli,
 		Defaults: lifecycle.Defaults{
 			WarmPool:    cfg.WarmPool,
 			TTL:         cfg.TTL,
@@ -72,7 +80,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	runner := &sweeper.Runner{Manager: manager, Interval: cfg.SweepInterval, Reconcile: store, Log: log}
+	runner := &sweeper.Runner{
+		Manager: manager, Interval: cfg.SweepInterval, Reconcile: store, Log: log,
+		IdleHorizon: cfg.IdleHorizon, WakeBootMargin: cfg.WakeBootMargin,
+	}
 	go runner.Run(ctx)
 
 	httpServer := &http.Server{

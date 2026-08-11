@@ -40,6 +40,16 @@ type Config struct {
 	WakeBaseURL             string
 	OrphanPolicy            string // "report" (only value implemented)
 
+	// Idle v2 (issue #2): poll session pods' /api/status so suspends key
+	// off agent-reported activity, not just relay traffic.
+	StatusEnabled  bool          // opt-in: sessions must run the serve container
+	StatusPort     int           // hermes serve port on session pods
+	StatusTimeout  time.Duration // per-poll HTTP timeout
+	StatusUsername string        // basic-auth credential for the gated cron endpoint
+	StatusPassword string        // (both empty = cron guard skipped)
+	IdleHorizon    time.Duration // cron fire within this window blocks a suspend
+	WakeBootMargin time.Duration // scheduled wakes fire this early before the cron
+
 	LogLevel  string
 	LogFormat string
 }
@@ -84,6 +94,25 @@ func Load() (*Config, error) {
 	if c.ConnectorProvisionToken, err = loadSecret("HLM_CONNECTOR_PROVISION_TOKEN"); err != nil {
 		return nil, err
 	}
+	if c.StatusEnabled, err = getBool("HLM_STATUS_ENABLED", false); err != nil {
+		return nil, err
+	}
+	if c.StatusPort, err = getInt("HLM_STATUS_PORT", 9119); err != nil {
+		return nil, err
+	}
+	if c.StatusTimeout, err = getDuration("HLM_STATUS_TIMEOUT", 3*time.Second); err != nil {
+		return nil, err
+	}
+	c.StatusUsername = getenv("HLM_STATUS_BASIC_AUTH_USERNAME", "")
+	if c.StatusPassword, err = loadSecret("HLM_STATUS_BASIC_AUTH_PASSWORD"); err != nil {
+		return nil, err
+	}
+	if c.IdleHorizon, err = getDuration("HLM_IDLE_HORIZON", 5*time.Minute); err != nil {
+		return nil, err
+	}
+	if c.WakeBootMargin, err = getDuration("HLM_WAKE_BOOT_MARGIN", 2*time.Minute); err != nil {
+		return nil, err
+	}
 
 	if c.Namespace == "" {
 		if b, err := os.ReadFile(inClusterNamespaceFile); err == nil {
@@ -117,6 +146,20 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("HLM_CONNECTOR_BOT_ID is required when a provision token is configured")
 		}
 	}
+	if c.StatusEnabled {
+		if c.StatusPort < 1 || c.StatusPort > 65535 {
+			return nil, fmt.Errorf("HLM_STATUS_PORT must be a valid port, got %d", c.StatusPort)
+		}
+		if c.StatusTimeout < time.Second {
+			return nil, fmt.Errorf("HLM_STATUS_TIMEOUT must be >= 1s, got %s", c.StatusTimeout)
+		}
+		if (c.StatusUsername == "") != (c.StatusPassword == "") {
+			return nil, fmt.Errorf("HLM_STATUS_BASIC_AUTH_USERNAME and HLM_STATUS_BASIC_AUTH_PASSWORD(_FILE) must be set together")
+		}
+		if c.IdleHorizon < c.WakeBootMargin {
+			return nil, fmt.Errorf("HLM_IDLE_HORIZON (%s) must be >= HLM_WAKE_BOOT_MARGIN (%s): a wake scheduled inside the margin would fire immediately", c.IdleHorizon, c.WakeBootMargin)
+		}
+	}
 	return c, nil
 }
 
@@ -139,6 +182,18 @@ func getBool(key string, def bool) (bool, error) {
 		return false, nil
 	}
 	return false, fmt.Errorf("%s: cannot parse %q as bool", key, v)
+}
+
+func getInt(key string, def int) (int, error) {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return def, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, fmt.Errorf("%s: cannot parse %q as integer", key, v)
+	}
+	return n, nil
 }
 
 // getDuration accepts Go duration strings ("30m") or bare integers (seconds).

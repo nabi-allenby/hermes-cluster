@@ -47,8 +47,11 @@ no messaging, but CRUD, `/wake`, and TTL work unchanged.
 - **The claim is the database.** The lifecycle-manager stores nothing:
   label `hermes.nabi.dev/managed=true` scopes the sweepers; annotations
   `hermes.nabi.dev/{ttl-seconds, idle-timeout-seconds, connector,
-  display-name}` carry per-session knobs. A restart rebuilds everything
-  from the claim list plus the connector instance list.
+  display-name}` carry per-session knobs, and `hermes.nabi.dev/wake-at`
+  (RFC3339, sweeper-written) schedules a resume for a pending cron fire. A
+  restart rebuilds everything from the claim list plus the connector
+  instance list. (The Idle v2 quiet clock is deliberately in-memory: losing
+  it only delays suspends.)
 - **State is derived on read, never stored:**
 
 | operatingMode | conditions | derived state |
@@ -82,6 +85,20 @@ activity (e.g. after a connector restart) is never idle. Suspend = patch
 `Sandbox.spec.operatingMode: Suspended`; the controller deletes the pod and
 keeps the PVC and Service.
 
+**Idle v2** (issue #2, on by default in the chart): relay traffic is not
+agent busyness — a long workflow, a cron run, or a desktop-dashboard chat is
+invisible to the connector. With status polling enabled the sweeper also
+requires, all fail-closed: the pod's public `/api/status` reachable this
+sweep · `active_agents == 0` and `active_sessions == 0` (the latter carries
+a built-in 300 s recency window) · an LM-observed quiet streak at least the
+idle timeout long (the readout has no last-activity timestamp, so the
+sweeper keeps its own clock; busy, unreachable, or an LM restart resets it)
+· and, with the chart's basic-auth credential, the earliest enabled cron
+`next_run_at` outside the idle horizon — an unreadable schedule blocks the
+suspend. A fire beyond the horizon stamps `wake-at = next_fire −
+boot_margin` on the claim *before* suspending; the sweep loop resumes the
+session when it passes, and any wake clears the annotation.
+
 **Wake** — a lost poke degrades to delivery-on-next-resume, never loss;
 `/wake` is idempotent (payload-free, unauthenticated, cooldown-limited) and
 safe mid-suspension:
@@ -114,8 +131,9 @@ never used.
 
 Enforced by the chart's NetworkPolicies (needs an enforcing CNI):
 
-- **Sessions**: egress to the connector and HTTPS only; no ingress — agents
-  dial out.
+- **Sessions**: egress to the connector and HTTPS only; the only ingress is
+  the lifecycle-manager's Idle v2 status poll to the serve container
+  (`:9119`) — everything else dials out.
 - **Connector**: ingress from sessions and the lifecycle-manager; egress to
   Discord (HTTPS), wake pokes to the lifecycle-manager, DNS.
 - **lifecycle-manager**: ingress only from the connector (wake pokes);

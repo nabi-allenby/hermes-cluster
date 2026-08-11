@@ -123,6 +123,15 @@ func (c *DynamicClient) DeleteClaim(ctx context.Context, name string) error {
 	return err
 }
 
+func (c *DynamicClient) PatchClaimAnnotations(ctx context.Context, name string, annotations map[string]*string) error {
+	_, err := c.dyn.Resource(c.claimGVR).Namespace(c.namespace).Patch(
+		ctx, name, types.MergePatchType, annotationsPatch(annotations), metav1.PatchOptions{})
+	if k8serrors.IsNotFound(err) {
+		return fmt.Errorf("claim %q: %w", name, ErrNotFound)
+	}
+	return err
+}
+
 func (c *DynamicClient) GetSandbox(ctx context.Context, name string) (*Sandbox, error) {
 	u, err := c.dyn.Resource(c.sboxGVR).Namespace(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if k8serrors.IsNotFound(err) {
