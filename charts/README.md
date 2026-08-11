@@ -33,6 +33,20 @@ helm install hermes charts/hermes-platform -n hermes --create-namespace
 
 Dev-loop timings: `--set connector.wakeCooldownSeconds=5 --set lifecycleManager.sweepInterval=15s`.
 
+## Security notes
+
+- **Sessions mutually trust each other's provisioning.** The pre-shared
+  provision token is mounted into every session pod (self-provision needs
+  it) and can rotate *any* existing gatewayId — a compromised agent pod
+  could hijack a sibling session's relay identity. Fine single-tenant; do
+  not host mutually-distrusting users until
+  [hermes-relay-connector#30](https://github.com/nabi-allenby/hermes-relay-connector/issues/30)
+  lands.
+- Generated tokens use Helm's crypto-grade `randAlphaNum` and are reused
+  across upgrades via `lookup` — which only works with server-side renders.
+  Client-side `helm template` GitOps flows (e.g. ArgoCD default) would
+  re-mint them every sync: set `connector.existingTokensSecret` there.
+
 ## Notes
 
 - `session.warmReplicas` must stay 0: the session identity chain
