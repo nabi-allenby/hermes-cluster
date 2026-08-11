@@ -20,12 +20,25 @@ The hard problems are delegated to pinned externals:
 (Discord token custody, durable buffering, wake pokes — optional; without it
 this is a generic session orchestrator).
 
-```
-Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manager
-                 ▲    ▲                                   │ claims CRUD · operatingMode
-                 │    └──── admin API (provision, ────────┤ patches · sweepers
-        WS+HMAC dial        activity, deprovision)        ▼
-            session pods (hermes gateway, PVC home)   Kubernetes API + agent-sandbox
+```mermaid
+flowchart LR
+    D[Discord]
+    subgraph K8S[Kubernetes]
+        HRC["relay-connector<br/>bot token · durable buffer"]
+        HLM["lifecycle-manager<br/>session CRUD · sweepers"]
+        SBX[agent-sandbox controller]
+        subgraph S["session · one per user"]
+            POD[hermes-agent pod]
+            PVC[("PVC · agent home")]
+        end
+    end
+    D <-->|messages| HRC
+    POD -->|WS relay, dial-out| HRC
+    POD --- PVC
+    HRC -->|"GET /wake/{id}"| HLM
+    HLM -->|admin API| HRC
+    HLM -->|"claims · operatingMode"| SBX
+    SBX -->|reconciles| S
 ```
 
 ## Proven, with numbers

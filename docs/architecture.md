@@ -4,12 +4,25 @@ Personal Hermes agents as managed, persistent, scale-to-zero sessions on
 Kubernetes. One session = one stateful pod with its whole home directory on
 a PVC — suspended to disk-only cost when idle, woken by an incoming message.
 
-```
-Discord ⇄ hermes-relay-connector ──GET /wake/{id}──▶ lifecycle-manager
-                 ▲    ▲                                   │ claims CRUD · operatingMode
-                 │    └──── admin API (provision, ────────┤ patches · sweepers
-        WS+HMAC dial        activity, deprovision)        ▼
-            session pods (hermes gateway, PVC home)   Kubernetes API + agent-sandbox
+```mermaid
+flowchart LR
+    D[Discord]
+    subgraph K8S[Kubernetes]
+        HRC["relay-connector<br/>bot token · durable buffer"]
+        HLM["lifecycle-manager<br/>session CRUD · sweepers"]
+        SBX[agent-sandbox controller]
+        subgraph S["session · one per user"]
+            POD[hermes-agent pod]
+            PVC[("PVC · agent home")]
+        end
+    end
+    D <-->|messages| HRC
+    POD -->|"WS relay, dial-out, HMAC"| HRC
+    POD --- PVC
+    HRC -->|"GET /wake/{id}"| HLM
+    HLM -->|"admin API: provision · activity · deprovision"| HRC
+    HLM -->|"claims · operatingMode"| SBX
+    SBX -->|"claim → sandbox → pod + PVC"| S
 ```
 
 ## Components
@@ -69,12 +82,26 @@ activity (e.g. after a connector restart) is never idle. Suspend = patch
 `Sandbox.spec.operatingMode: Suspended`; the controller deletes the pod and
 keeps the PVC and Service.
 
-**Wake**: message to a suspended agent → connector buffers durably → pokes
-`GET /wake/{id}` (payload-free, unauthenticated, cooldown-limited) → patch
-`operatingMode: Running` → pod recreates on the same PVC → gateway
-re-dials → backlog replays in order, ack-gated. A lost poke degrades to
-delivery-on-next-resume, never loss. `/wake` is idempotent and safe
-mid-suspension.
+**Wake** — a lost poke degrades to delivery-on-next-resume, never loss;
+`/wake` is idempotent (payload-free, unauthenticated, cooldown-limited) and
+safe mid-suspension:
+
+```mermaid
+sequenceDiagram
+    participant U as User (Discord)
+    participant C as connector
+    participant L as lifecycle-manager
+    participant K as Kubernetes
+    participant A as agent pod
+    U->>C: message (session suspended)
+    C->>C: buffer durably
+    C->>L: GET /wake/{id}
+    L->>K: patch operatingMode: Running
+    K->>A: pod recreated on the same PVC
+    A->>C: re-provision, WS reconnect
+    C->>A: replay backlog (in order, ack-gated)
+    A->>U: reply
+```
 
 **Decommission** — exactly one code path, used by `DELETE /v1/sessions/{id}`
 and the TTL sweeper: connector deprovision first (purges buffer, routes,
