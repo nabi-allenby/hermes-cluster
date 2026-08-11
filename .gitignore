@@ -2,11 +2,4 @@ lifecycle-manager/lifecycle-manager
 *.db
 .DS_Store
 dist/
-
-# Terraform / OpenTofu
-**/.terraform/
-*.tfstate
-*.tfstate.*
-.terraform.lock.hcl
-*.tfvars
-*.plan
+*.tgz

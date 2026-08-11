@@ -23,6 +23,15 @@ jobs:
       - name: unit tests
         run: cd lifecycle-manager && go test -race ./...
 
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: lint + render
+        run: |
+          helm lint charts/hermes-cluster
+          helm template t charts/hermes-cluster >/dev/null
+
   image:
     needs: test
     runs-on: ubuntu-latest
