@@ -29,19 +29,19 @@ image-load: image ## build + load into minikube
 	minikube -p $(MINIKUBE_PROFILE) image load $(IMAGE):$(VERSION)
 
 minikube-up: ## start minikube + install pinned agent-sandbox
-	hack/minikube-up.sh
+	test/env/minikube-up.sh
 
 drill-substrate: minikube-up ## claim -> suspend -> PVC survives -> resume
-	hack/drills/0-substrate/run.sh
+	test/drills/0-substrate/run.sh
 
 # Needs images hermes-agent + hrc in the local docker daemon and a seed home
-# dir for make-seed.sh (see hack/README.md).
+# dir for make-seed.sh (see test/README.md).
 drill-agent: minikube-up ## real agent session: boot -> connect -> suspend -> wake -> drain
-	hack/drills/1-agent-session/run.sh
+	test/drills/1-agent-session/run.sh
 
-# Needs a Discord bot token and PAC1_BOT_ID (see hack/README.md).
+# Needs a Discord bot token and PAC1_BOT_ID (see test/README.md).
 drill-live: minikube-up ## the chart fronting your real Discord bot
-	hack/drills/2-live-discord/run.sh
+	test/drills/2-live-discord/run.sh
 
 chart-lint: ## helm lint + render check
 	helm lint charts/hermes-cluster
@@ -52,7 +52,7 @@ e2e: ## e2e tiers 1-2 (minikube; +docker for the connector tier)
 	cd $(LM_DIR) && go test -tags e2e -count=1 -timeout 20m ./e2e/...
 
 # Run the lifecycle-manager locally against the minikube kubeconfig
-# (kubectl apply -f hack/e2e/template.yaml provides the e2e-pool).
+# (kubectl apply -f test/fixtures/template.yaml provides the e2e-pool).
 run-local: ## run the LM locally against your kubeconfig
 	cd $(LM_DIR) && HLM_WARM_POOL=$${HLM_WARM_POOL:-e2e-pool} HLM_NAMESPACE=$${HLM_NAMESPACE:-default} \
 		HLM_LOG_FORMAT=text go run ./cmd/lifecycle-manager

@@ -20,7 +20,7 @@ k() { kubectl -n "$ns" "$@"; }
 
 echo ">> prereqs"
 kubectl get crd sandboxclaims.extensions.agents.x-k8s.io >/dev/null \
-  || { echo "FAIL: agent-sandbox not installed (hack/minikube-up.sh)" >&2; exit 1; }
+  || { echo "FAIL: agent-sandbox not installed (test/env/minikube-up.sh)" >&2; exit 1; }
 [ -s "$token_file" ] || { echo "FAIL: $token_file missing" >&2; exit 1; }
 
 echo ">> secrets (seed reused from the agent-session drill tooling)"

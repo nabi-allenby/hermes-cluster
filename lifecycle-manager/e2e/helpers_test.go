@@ -1,7 +1,7 @@
 //go:build e2e
 
 // Package e2e drives the lifecycle-manager against a real minikube cluster
-// (agent-sandbox installed via hack/minikube-up.sh) and, for Tier 2, a real
+// (agent-sandbox installed via test/env/minikube-up.sh) and, for Tier 2, a real
 // hermes-relay-connector container. Run with: make e2e
 package e2e
 
@@ -54,7 +54,7 @@ func requireCluster(t *testing.T) {
 	if out, err := exec.Command("kubectl", "get", "crd", "sandboxclaims.extensions.agents.x-k8s.io").CombinedOutput(); err != nil {
 		t.Skipf("no cluster with agent-sandbox available (run make minikube-up): %v\n%s", err, out)
 	}
-	kubectl(t, "apply", "-f", filepath.Join(repoRoot(t), "hack", "e2e", "template.yaml"))
+	kubectl(t, "apply", "-f", filepath.Join(repoRoot(t), "test", "fixtures", "template.yaml"))
 }
 
 // startLM runs the lifecycle-manager in-process on 0.0.0.0:<free port>

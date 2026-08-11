@@ -6,7 +6,7 @@
 #   -> resume -> re-auth from persisted state -> buffer drains
 #   -> decommission cascade
 #
-# Prereqs: minikube running with agent-sandbox installed (hack/minikube-up.sh),
+# Prereqs: minikube running with agent-sandbox installed (test/env/minikube-up.sh),
 # images hermes-agent:local and hrc:e2e in the local docker daemon, and a seed
 # home directory for make-seed.sh (default ~/Downloads/.hermes-container-home).
 #
@@ -77,7 +77,7 @@ wait_instance() { # field expected timeout_s -> echoes elapsed ms
 # ── prereqs ──────────────────────────────────────────────────────────────
 echo ">> prereqs"
 kubectl get crd sandboxclaims.extensions.agents.x-k8s.io >/dev/null \
-  || { echo "FAIL: agent-sandbox not installed (run hack/minikube-up.sh)" >&2; exit 1; }
+  || { echo "FAIL: agent-sandbox not installed (run test/env/minikube-up.sh)" >&2; exit 1; }
 for img in hermes-agent:local hrc:e2e; do
   if ! minikube image ls | grep -q "${img/:/.*}"; then
     docker image inspect "$img" >/dev/null 2>&1 \

@@ -62,7 +62,7 @@ with the LLM key, Discord bot token).
 
 ```bash
 helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-cluster \
-  --version 0.2.0 -n hermes --create-namespace
+  --version 0.2.1 -n hermes --create-namespace
 ```
 
 Then create a session and talk to your bot:
@@ -90,7 +90,7 @@ make e2e              # e2e tiers 1-2 vs minikube (+docker)
 Or run the lifecycle-manager bare against any kubeconfig:
 
 ```bash
-kubectl apply -f hack/e2e/template.yaml
+kubectl apply -f test/fixtures/template.yaml
 HLM_WARM_POOL=e2e-pool make run-local
 ```
 
@@ -151,7 +151,8 @@ the sweep cadence is the retry loop.
 | `lifecycle-manager/` | the Go service (unit + e2e tests) |
 | `charts/hermes-cluster/` | the platform chart (published as OCI on `chart-v*` tags) |
 | `docs/` | architecture, HTTP API, agent-sandbox substrate facts |
-| `hack/` | minikube bootstrap, e2e fixtures, reproducible drills ([hack/README.md](hack/README.md)) |
+| `test/` | local test env (minikube), e2e fixtures, live drills ([test/README.md](test/README.md)) |
+| `CONTRIBUTING.md` | setup, test ladder, design ground rules |
 | `docs/architecture.md` | the system design in one page |
 
 ## Pins

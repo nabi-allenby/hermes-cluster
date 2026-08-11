@@ -10,11 +10,11 @@ echo-buffer → wake <2 s → drain → decommission cascade).
 ## Prerequisites (the chart references, never creates)
 
 1. **agent-sandbox CRDs + controller** (pinned v0.5.4) — install the
-   upstream release manifest (`hack/minikube-up.sh` does it for minikube;
+   upstream release manifest (`test/env/minikube-up.sh` does it for minikube;
    see docs/agent-sandbox.md for the manifest URL).
 2. **Secret `hermes-home-seed`** — first-boot `HERMES_HOME`: keys `.env`
    (LLM key), `auth.json`, `config.yaml`, `SOUL.md`. Build locally with
-   `hack/drills/1-agent-session/make-seed.sh`.
+   `test/drills/1-agent-session/make-seed.sh`.
 3. **Secret `hrc-discord-token`** (key `token`) — optional; without it the
    connector runs Discord-less (echo/relay only).
 4. **The agent image** (`session.image`) — defaults to the official

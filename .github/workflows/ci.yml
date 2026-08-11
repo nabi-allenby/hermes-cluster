@@ -83,8 +83,8 @@ jobs:
         with:
           driver: docker
       - name: install agent-sandbox
-        run: hack/minikube-up.sh
+        run: test/env/minikube-up.sh
       - name: tier 0 (P-M0 suspend/resume loop)
-        run: hack/drills/0-substrate/run.sh
+        run: test/drills/0-substrate/run.sh
       - name: e2e tests
         run: cd lifecycle-manager && go test -tags e2e -count=1 -timeout 20m ./e2e/...

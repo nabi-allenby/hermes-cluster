@@ -1,6 +1,6 @@
 # The session recipe (docs/architecture.md) as chart resources. Requires the
 # agent-sandbox CRDs/controller (installed by the terraform platform module
-# or hack/minikube-up.sh) — they are deliberately NOT part of this chart.
+# or test/env/minikube-up.sh) — they are deliberately NOT part of this chart.
 apiVersion: v1
 kind: ConfigMap
 metadata:

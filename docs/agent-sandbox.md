@@ -14,7 +14,7 @@ https://github.com/kubernetes-sigs/agent-sandbox/releases/download/v0.5.4/sandbo
 ```
 
 (`sandbox.yaml` + `extensions.yaml` are the split variants; the combined file is what
-`hack/minikube-up.sh` applies.) Controller runs in `agent-sandbox-system`. The
+`test/env/minikube-up.sh` applies.) Controller runs in `agent-sandbox-system`. The
 SandboxClaim CRD uses a **conversion webhook** — claims cannot be created until the
 controller pod is Ready and the webhook has endpoints.
 
@@ -69,7 +69,7 @@ the `extensions.` prefix. RBAC must name both groups.
   the controller renders sandbox pods with `dnsPolicy: None` and public resolvers
   (`8.8.8.8`, `1.1.1.1`) — cluster service names do not resolve from inside a sandbox.
   An explicit `dnsPolicy: ClusterFirst` in the template survives the defaulting
-  (hack/drills/1-agent-session/template.yaml relies on this to reach the connector Service).
+  (test/drills/1-agent-session/template.yaml relies on this to reach the connector Service).
 
 ## Ownership / cascade
 
@@ -98,7 +98,7 @@ Nothing else — no pods, secrets, or PVCs.
 | `Suspended` | `Suspended` not True | `Suspending` |
 | any | claim `deletionTimestamp` set | `Terminating` |
 
-## Timings (minikube, docker driver, hostpath storage; `hack/drills/0-substrate/run.sh`)
+## Timings (minikube, docker driver, hostpath storage; `test/drills/0-substrate/run.sh`)
 
 | Step | Measured |
 |---|---|
