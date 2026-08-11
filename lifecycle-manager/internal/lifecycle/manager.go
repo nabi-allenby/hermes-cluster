@@ -1,6 +1,6 @@
 // Package lifecycle implements the session operations shared by the HTTP API
 // and the sweepers: create (with optional connector provisioning), read,
-// wake, and the single decommission path (design §4.4).
+// wake, and the single decommission path.
 package lifecycle
 
 import (
@@ -170,8 +170,8 @@ func (m *Manager) List(ctx context.Context) ([]session.Session, error) {
 	return sessions, nil
 }
 
-// Wake unconditionally sets the session's sandbox to Running (design §5.1:
-// idempotent, safe mid-suspension).
+// Wake unconditionally sets the session's sandbox to Running —
+// idempotent, safe mid-suspension.
 func (m *Manager) Wake(ctx context.Context, id string) error {
 	claim, err := m.K8s.GetClaim(ctx, id)
 	if err != nil {

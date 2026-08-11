@@ -118,7 +118,7 @@ metadata:
 spec:
   # gatewayId == pod == claim name only holds on cold starts; warm-pool
   # adoption breaks that identity, so keep replicas at 0 until the session
-  # recipe carries identity differently (design §12).
+  # recipe carries identity differently.
   replicas: {{ .Values.session.warmReplicas }}
   sandboxTemplateRef:
     name: {{ .Values.session.templateName }}

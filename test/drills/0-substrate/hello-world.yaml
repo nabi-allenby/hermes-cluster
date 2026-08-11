@@ -1,4 +1,4 @@
-# P-M0 hello-world: template + empty warm pool + one claim.
+# Substrate-drill hello-world: template + empty warm pool + one claim.
 # The busybox pod writes a marker to its PVC and sleeps; suspend/resume must
 # preserve the marker (kubectl exec cat /data/marker).
 apiVersion: extensions.agents.x-k8s.io/v1beta1

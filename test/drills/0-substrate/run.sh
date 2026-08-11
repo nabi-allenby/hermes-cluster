@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# P-M0: claim -> Ready -> suspend -> PVC survives -> resume -> marker intact.
+# Substrate drill: claim -> Ready -> suspend -> PVC survives -> resume -> marker intact.
 # Prints a timing table at the end.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ns="${PM0_NAMESPACE:-default}"
+ns="${DRILL_NAMESPACE:-default}"
 k() { kubectl -n "$ns" "$@"; }
 
 now_ms() { python3 -c 'import time; print(int(time.time()*1000))'; }
@@ -73,7 +73,7 @@ done
 
 cat <<EOF
 
-P-M0 PASS
+SUBSTRATE DRILL PASS
   cold start (claim -> Ready):   ${ready_ms} ms
   suspend  (patch -> Suspended): ${suspend_ms} ms
   resume   (patch -> Ready):     ${resume_ms} ms

@@ -2,7 +2,7 @@ package k8s
 
 // Every agent-sandbox CRD field path the lifecycle-manager relies on is in
 // this file and nowhere else, so a pin bump that moves the schema is a
-// one-file change. Facts verified against v0.5.4 — see docs/p-m0.md.
+// one-file change. Facts verified against v0.5.4 — see docs/agent-sandbox.md.
 
 import (
 	"fmt"

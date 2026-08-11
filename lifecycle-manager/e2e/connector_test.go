@@ -124,7 +124,7 @@ func echoInbound(t *testing.T, connectorURL, gatewayID, chatID, text string) map
 	return body
 }
 
-// TestTier2FullWakeLoop is the agentless wake loop (design §5): provision →
+// TestTier2FullWakeLoop is the agentless wake loop: provision →
 // suspend → Discord message (echo) → durable buffer → wake poke → LM patches
 // Running → sandbox resumes. No Discord, no Hermes agent.
 func TestTier2FullWakeLoop(t *testing.T) {

@@ -1,7 +1,7 @@
 # charts/hermes-cluster
 
 The platform as a Helm chart: connector Deployment + buffer PVC (1 replica,
-`Recreate` — SQLite), lifecycle-manager Deployment + RBAC, the P-M1 session
+`Recreate` — SQLite), lifecycle-manager Deployment + RBAC, the session
 `SandboxTemplate`/`SandboxWarmPool`, NetworkPolicies. Cloud-agnostic:
 storage classes, image refs, and scheduling (nodeSelector/tolerations) are
 values. Validated end-to-end on minikube (create → connected → suspend →
@@ -51,7 +51,7 @@ Dev-loop timings: `--set connector.wakeCooldownSeconds=5 --set lifecycleManager.
 
 - `session.warmReplicas` must stay 0: the session identity chain
   (gatewayId == pod == claim name) only holds on cold starts; warm-pool
-  adoption breaks it (design §12 open question).
+  adoption breaks it (open question).
 - NetworkPolicies are default-on and need an enforcing CNI (AKS Azure CNI
   does; plain minikube's kindnet does not — inert there).
 - The `dnsPolicy: ClusterFirst` in the template is load-bearing:

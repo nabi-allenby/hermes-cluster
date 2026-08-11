@@ -1,7 +1,7 @@
 package session
 
 // State is the derived lifecycle state of a session. It is never stored
-// anywhere (design §4.3) — always recomputed from the claim + sandbox.
+// anywhere — always recomputed from the claim + sandbox.
 type State string
 
 const (
@@ -35,7 +35,7 @@ type Facts struct {
 	Suspended bool
 }
 
-// Derive maps observed facts to the session state (design §4.3 table).
+// Derive maps observed facts to the session state (docs/architecture.md table).
 func Derive(f Facts) State {
 	switch {
 	case f.Terminating:

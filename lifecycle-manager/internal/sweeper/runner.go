@@ -1,5 +1,5 @@
 // Package sweeper runs the idle and TTL sweep loops — the only writers of
-// lifecycle intent in the whole system (design §4.4).
+// lifecycle intent in the whole system.
 package sweeper
 
 import (
@@ -31,7 +31,7 @@ type Runner struct {
 
 // Run blocks until ctx is done. The first sweep (and reconcile) happens
 // immediately at startup — a restarted lifecycle-manager rebuilds its whole
-// view from the claim list + instance list (design P-AC5).
+// view from the claim list + instance list — statelessness by design.
 func (r *Runner) Run(ctx context.Context) {
 	cycle := 0
 	for {

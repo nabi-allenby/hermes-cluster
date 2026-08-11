@@ -39,7 +39,7 @@ drill-substrate: minikube-up ## claim -> suspend -> PVC survives -> resume
 drill-agent: minikube-up ## real agent session: boot -> connect -> suspend -> wake -> drain
 	test/drills/1-agent-session/run.sh
 
-# Needs a Discord bot token and PAC1_BOT_ID (see test/README.md).
+# Needs a Discord bot token and DRILL_BOT_ID (see test/README.md).
 drill-live: minikube-up ## the chart fronting your real Discord bot
 	test/drills/2-live-discord/run.sh
 

@@ -16,7 +16,7 @@ type IdleInput struct {
 	Now         time.Time
 }
 
-// DecideIdle is the conservative v1 suspend gate (design §4.4, "never
+// DecideIdle is the conservative suspend gate ("never
 // mid-turn"). Pure function: returns true only when EVERY guard passes.
 //
 // Guards, in order:

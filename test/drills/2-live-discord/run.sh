@@ -6,15 +6,15 @@
 #
 # Prereqs: the agent-session drill's prereqs (see ../1-agent-session/run.sh),
 # plus a Discord bot token file (default ~/.config/hrc/discord.token) and
-# your bot's application id in PAC1_BOT_ID.
+# your bot's application id in DRILL_BOT_ID.
 # Leaves everything RUNNING; tear down with ./down.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ns="${PAC1_NAMESPACE:-hermes}"
-session="${PAC1_SESSION:-s-live-1}"
-bot_id="${PAC1_BOT_ID:?set PAC1_BOT_ID to your Discord application/bot id}"
-token_file="${PAC1_DISCORD_TOKEN_FILE:-$HOME/.config/hrc/discord.token}"
+ns="${DRILL_NAMESPACE:-hermes}"
+session="${DRILL_SESSION:-s-live-1}"
+bot_id="${DRILL_BOT_ID:?set DRILL_BOT_ID to your Discord application/bot id}"
+token_file="${DRILL_DISCORD_TOKEN_FILE:-$HOME/.config/hrc/discord.token}"
 chart="../../../charts/hermes-cluster"
 k() { kubectl -n "$ns" "$@"; }
 
@@ -25,7 +25,7 @@ kubectl get crd sandboxclaims.extensions.agents.x-k8s.io >/dev/null \
 
 echo ">> secrets (seed reused from the agent-session drill tooling)"
 kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-PM1_NAMESPACE="$ns" ../1-agent-session/make-seed.sh >/dev/null
+DRILL_NAMESPACE="$ns" ../1-agent-session/make-seed.sh >/dev/null
 k create secret generic hrc-discord-token --from-file=token="$token_file" \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 

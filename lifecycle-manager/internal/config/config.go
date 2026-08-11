@@ -18,7 +18,7 @@ type Config struct {
 	Listen    string
 	Namespace string
 	// WarmPool is the default SandboxWarmPool new sessions claim from
-	// (v1beta1 claims reference pools, not templates; see docs/p-m0.md).
+	// (v1beta1 claims reference pools, not templates; see docs/agent-sandbox.md).
 	WarmPool string
 
 	SandboxAPIGroup    string // group of Sandbox (agents.x-k8s.io)

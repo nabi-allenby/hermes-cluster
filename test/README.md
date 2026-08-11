@@ -38,8 +38,8 @@ version is pinned in the script (`AGENT_SANDBOX_VERSION`).
   `auth.json`, `config.yaml`, `SOUL.md` into the cluster Secrets. Nothing
   secret is ever committed.
 - **`drills/2-live-discord`**: a Discord bot token file
-  (`PAC1_DISCORD_TOKEN_FILE`, default `~/.config/hrc/discord.token`) and
-  `PAC1_BOT_ID` (your bot's application id). Uses the chart itself with
+  (`DRILL_DISCORD_TOKEN_FILE`, default `~/.config/hrc/discord.token`) and
+  `DRILL_BOT_ID` (your bot's application id). Uses the chart itself with
   fast dev timings, so it doubles as chart validation.
 
 ## Conventions

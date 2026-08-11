@@ -1,4 +1,4 @@
-# Lifecycle-manager RBAC — exactly design §4.2, nothing else.
+# Lifecycle-manager RBAC — the exact minimal surface, nothing else.
 apiVersion: v1
 kind: ServiceAccount
 metadata:

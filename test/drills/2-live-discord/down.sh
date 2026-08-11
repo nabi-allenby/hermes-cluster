@@ -2,8 +2,8 @@
 # Tear down the live-Discord drill: session via the LM (deprovision +
 # cascade), then the chart release. Keeps the seed/token secrets.
 set -euo pipefail
-ns="${PAC1_NAMESPACE:-hermes}"
-session="${PAC1_SESSION:-s-live-1}"
+ns="${DRILL_NAMESPACE:-hermes}"
+session="${DRILL_SESSION:-s-live-1}"
 k() { kubectl -n "$ns" "$@"; }
 
 if k get deploy hermes-hlm >/dev/null 2>&1; then

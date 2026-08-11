@@ -19,7 +19,7 @@
 #     that equality, so this template is meant for replicas: 0 pools only.
 #
 # The image runs its s6 bootstrap as root and drops to the hermes user, so no
-# pod securityContext here; hardening is a P-M3 (chart) concern.
+# pod securityContext here; hardening belongs to the chart.
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata:

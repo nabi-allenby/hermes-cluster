@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the Secrets/ConfigMap the P-M1 drill needs. Nothing here is committed;
+# Build the Secrets/ConfigMap the agent-session drill needs. Nothing here is committed;
 # all secret material lives only in the cluster.
 #
 #   hermes-home-seed        first-boot HERMES_HOME content: auth.json,
@@ -16,7 +16,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ns="${PM1_NAMESPACE:-default}"
+ns="${DRILL_NAMESPACE:-default}"
 seed_dir="${1:-$HOME/Downloads/.hermes-container-home}"
 k() { kubectl -n "$ns" "$@"; }
 

@@ -3,7 +3,7 @@ kind: ServiceAccount
 metadata:
   name: {{ .Release.Name }}-hlm
 ---
-# Exactly design §4.2 — claims (full lifecycle) + sandboxes (patch), both
+# The exact minimal RBAC — claims (full lifecycle) + sandboxes (patch), both
 # API groups, nothing else. Mirrors test/fixtures/rbac.yaml.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

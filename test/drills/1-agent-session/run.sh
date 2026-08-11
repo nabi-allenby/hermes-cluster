@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# P-M1 drill: the real hermes-agent as a sandbox session.
+# Agent-session drill: the real hermes-agent as a sandbox session.
 #
 #   claim -> pod boots -> self-provisions -> gateway connected-idle
 #   -> suspend (graceful going_idle) -> message buffers while suspended
@@ -10,13 +10,13 @@
 # images hermes-agent:local and hrc:e2e in the local docker daemon, and a seed
 # home directory for make-seed.sh (default ~/Downloads/.hermes-container-home).
 #
-# Env: PM1_NAMESPACE (default), PM1_ECHO=0 to skip the LLM round-trip check,
-# PM1_KEEP=1 to leave the connector + template installed after the run.
+# Env: DRILL_NAMESPACE (default), DRILL_ECHO=0 to skip the LLM round-trip check,
+# DRILL_KEEP=1 to leave the connector + template installed after the run.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ns="${PM1_NAMESPACE:-default}"
-claim="s-pm1-1"
+ns="${DRILL_NAMESPACE:-default}"
+claim="s-drill-1"
 k() { kubectl -n "$ns" "$@"; }
 now_ms() { python3 -c 'import time; print(int(time.time()*1000))'; }
 
@@ -36,7 +36,7 @@ wait_cond() { # object condition timeout_s -> echoes elapsed ms
 pf_pid=""
 cleanup() {
   [ -n "$pf_pid" ] && kill "$pf_pid" 2>/dev/null || true
-  if [ "${PM1_KEEP:-0}" != "1" ]; then
+  if [ "${DRILL_KEEP:-0}" != "1" ]; then
     k delete sandboxclaim "$claim" --ignore-not-found --wait=false >/dev/null 2>&1 || true
     k delete -f connector.yaml --ignore-not-found >/dev/null 2>&1 || true
     k delete -f template.yaml --ignore-not-found >/dev/null 2>&1 || true
@@ -88,7 +88,7 @@ for img in hermes-agent:local hrc:e2e; do
 done
 
 echo ">> secrets + bootstrap"
-PM1_NAMESPACE="$ns" ./make-seed.sh >/dev/null
+DRILL_NAMESPACE="$ns" ./make-seed.sh >/dev/null
 admin_token="$(k get secret hrc-tokens -o jsonpath='{.data.admin-token}' | base64 -d)"
 
 echo ">> connector"
@@ -129,9 +129,9 @@ conn_ms=$(wait_instance connected True 180)
 boot_total=$(( $(now_ms) - t0 ))
 echo "   connected in ${conn_ms}ms after Ready (claim -> connected total ${boot_total}ms)"
 
-if [ "${PM1_ECHO:-1}" = "1" ]; then
+if [ "${DRILL_ECHO:-1}" = "1" ]; then
   echo ">> echo round-trip (needs a working LLM key in the seeded .env)"
-  admin POST /echo/inbound "{\"gatewayId\":\"$claim\",\"chatId\":\"pm1-chat\",\"text\":\"Reply with the single word: pong\"}" >/dev/null
+  admin POST /echo/inbound "{\"gatewayId\":\"$claim\",\"chatId\":\"drill-chat\",\"text\":\"Reply with the single word: pong\"}" >/dev/null
   reply=""
   for _ in $(seq 1 90); do
     reply="$(admin GET /echo/outbox | python3 -c "
@@ -147,7 +147,7 @@ print(a.get('content') or a.get('text') or '')" 2>/dev/null || true)"
     echo "   agent replied: ${reply:0:80}"
   else
     echo "   WARN: no reply in 180s (LLM key missing/out of credits?) — connected-idle already proven"
-    [ "${PM1_REQUIRE_ECHO:-0}" = "1" ] && exit 1
+    [ "${DRILL_REQUIRE_ECHO:-0}" = "1" ] && exit 1
   fi
 fi
 
@@ -159,13 +159,13 @@ disc_ms=$(wait_instance connected False 30)
 echo "   Suspended=True in ${suspend_ms}ms; connector saw disconnect in ${disc_ms}ms"
 
 echo ">> buffer a message while suspended"
-admin POST /echo/inbound "{\"gatewayId\":\"$claim\",\"chatId\":\"pm1-chat\",\"text\":\"buffered while asleep\"}" >/dev/null
+admin POST /echo/inbound "{\"gatewayId\":\"$claim\",\"chatId\":\"drill-chat\",\"text\":\"buffered while asleep\"}" >/dev/null
 buffered="$(instance_field bufferedCount)"
 [ "$buffered" -ge 1 ] 2>/dev/null \
   || { echo "FAIL: bufferedCount=$buffered after echo while suspended" >&2; exit 1; }
 echo "   bufferedCount=$buffered"
 
-echo ">> resume — re-auth from persisted state (P-M1 acceptance)"
+echo ">> resume — re-auth from persisted state"
 t2=$(now_ms)
 k patch sandbox "$sandbox" --type=merge -p '{"spec":{"operatingMode":"Running"}}' >/dev/null
 resume_ms=$(wait_cond "sandbox/$sandbox" Ready 120)
@@ -186,7 +186,7 @@ done
 
 cat <<EOF
 
-P-M1 PASS
+AGENT-SESSION DRILL PASS
   cold boot   claim -> pod Ready:          ${ready_ms} ms
               Ready -> gateway connected:  ${conn_ms} ms   (total ${boot_total} ms)
   suspend     patch -> Suspended=True:     ${suspend_ms} ms (graceful gateway exit)
