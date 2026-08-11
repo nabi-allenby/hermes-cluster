@@ -7,7 +7,7 @@ description: >-
   for kubernetes-sigs/agent-sandbox. CRDs/controller for agent-sandbox are a
   prerequisite and install from the upstream release manifest (see README).
 type: application
-version: 0.6.0
+version: 0.6.1
 appVersion: "0.3.0"
 keywords: [hermes, agents, discord, agent-sandbox, scale-to-zero]
 sources:
