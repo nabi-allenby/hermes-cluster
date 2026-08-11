@@ -163,4 +163,4 @@ the sweep cadence is the retry loop.
 | hermes-relay-connector | `0.2.0` | public on GHCR; contract notes in `internal/connector` |
 | hermes-agent | `v2026.8.3` (≈ `@244d296`) | official Docker Hub image, multi-arch; relay contract conformance-verified at the pin |
 
-License: Apache-2.0.
+License: MIT.
