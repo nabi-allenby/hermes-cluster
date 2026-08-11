@@ -1,6 +1,7 @@
 # The session recipe (docs/architecture.md) as chart resources. Requires the
-# agent-sandbox CRDs/controller (installed by the terraform platform module
-# or test/env/minikube-up.sh) — they are deliberately NOT part of this chart.
+# agent-sandbox CRDs/controller (upstream release manifest;
+# test/env/minikube-up.sh installs them locally) — deliberately NOT part of
+# this chart.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -71,7 +72,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: HERMES_RELAY_URL
-              value: {{ include "hp.connectorURL" . }}
+              value: {{ include "hc.connectorURL" . }}
             - name: HERMES_RELAY_BOT_ID
               value: {{ .Values.session.botId | quote }}
           volumeMounts:
@@ -90,7 +91,7 @@ spec:
             defaultMode: 0444
             sources:
               - secret:
-                  name: {{ include "hp.tokensSecretName" . }}
+                  name: {{ include "hc.tokensSecretName" . }}
                   items:
                     - key: provision-token
                       path: provision-token

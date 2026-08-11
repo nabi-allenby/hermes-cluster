@@ -27,10 +27,10 @@ spec:
               value: 0.0.0.0:8420
             - name: HRC_ADMIN_TOKEN
               valueFrom:
-                secretKeyRef: {name: {{ include "hp.tokensSecretName" . }}, key: admin-token}
+                secretKeyRef: {name: {{ include "hc.tokensSecretName" . }}, key: admin-token}
             - name: HRC_PROVISION_TOKEN
               valueFrom:
-                secretKeyRef: {name: {{ include "hp.tokensSecretName" . }}, key: provision-token}
+                secretKeyRef: {name: {{ include "hc.tokensSecretName" . }}, key: provision-token}
             {{- if .Values.connector.discordTokenSecret }}
             - name: HRC_DISCORD_TOKEN_FILE
               value: /run/secrets/discord.token

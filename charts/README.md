@@ -5,13 +5,14 @@ The platform as a Helm chart: connector Deployment + buffer PVC (1 replica,
 `SandboxTemplate`/`SandboxWarmPool`, NetworkPolicies. Cloud-agnostic:
 storage classes, image refs, and scheduling (nodeSelector/tolerations) are
 values. Validated end-to-end on minikube (create → connected → suspend →
-echo-buffer → wake <2 s → drain → decommission cascade).
+echo-buffer → wake → drain → decommission cascade; measured timings in
+[../docs/architecture.md](../docs/architecture.md)).
 
 ## Prerequisites (the chart references, never creates)
 
 1. **agent-sandbox CRDs + controller** (pinned v0.5.4) — install the
    upstream release manifest (`test/env/minikube-up.sh` does it for minikube;
-   see docs/agent-sandbox.md for the manifest URL).
+   see [../docs/agent-sandbox.md](../docs/agent-sandbox.md) for the manifest URL).
 2. **Secret `hermes-home-seed`** — first-boot `HERMES_HOME`: keys `.env`
    (LLM key), `auth.json`, `config.yaml`, `SOUL.md`. Build locally with
    `test/drills/1-agent-session/make-seed.sh`.
@@ -28,8 +29,11 @@ upgrades (`connector.existingTokensSecret` to bring your own).
 ## Install
 
 ```bash
-helm install hermes charts/hermes-cluster -n hermes --create-namespace
+helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-cluster \
+  --version 0.2.2 -n hermes --create-namespace
 ```
+
+From a checkout: `helm install hermes charts/hermes-cluster ...`.
 
 Dev-loop timings: `--set connector.wakeCooldownSeconds=5 --set lifecycleManager.sweepInterval=15s`.
 
@@ -56,4 +60,4 @@ Dev-loop timings: `--set connector.wakeCooldownSeconds=5 --set lifecycleManager.
   does; plain minikube's kindnet does not — inert there).
 - The `dnsPolicy: ClusterFirst` in the template is load-bearing:
   agent-sandbox v0.5.4 otherwise renders sandbox pods with public resolvers
-  and cluster Services never resolve (docs/agent-sandbox.md).
+  and cluster Services never resolve ([../docs/agent-sandbox.md](../docs/agent-sandbox.md)).

@@ -2,7 +2,8 @@
 # Discord token (the echo API stands in for Discord). Buffer DB on an
 # emptyDir -- this is a drill fixture; the chart gives it a PVC.
 #
-# Image: hrc:e2e (docker build -t hrc:e2e ~/Downloads/hermod), loaded into
+# Image: hrc:e2e (docker build -t hrc:e2e <hermes-relay-connector checkout>),
+# loaded into
 # minikube by run.sh. The v0.2.0 image is FROM scratch and non-root (65532);
 # fsGroup makes /data writable. Do NOT override HRC_DB -- /data is the only
 # writable path in the image.

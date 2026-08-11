@@ -1,4 +1,4 @@
-{{- define "hp.tokensSecretName" -}}
+{{- define "hc.tokensSecretName" -}}
 {{- if .Values.connector.existingTokensSecret -}}
 {{- .Values.connector.existingTokensSecret -}}
 {{- else -}}
@@ -6,10 +6,10 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "hp.connectorURL" -}}
+{{- define "hc.connectorURL" -}}
 {{- printf "http://%s-hrc:8420" .Release.Name -}}
 {{- end -}}
 
-{{- define "hp.wakeBaseURL" -}}
+{{- define "hc.wakeBaseURL" -}}
 {{- printf "http://%s-hlm:%d" .Release.Name (int .Values.lifecycleManager.listenPort) -}}
 {{- end -}}

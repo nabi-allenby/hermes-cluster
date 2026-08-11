@@ -4,6 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Refuse to run against a non-local cluster by accident.
+ctx="$(kubectl config current-context 2>/dev/null || true)"
+want="${DRILL_CONTEXT:-minikube}"
+[ "$ctx" = "$want" ] || { echo "FAIL: kubectl context is '$ctx', expected '$want' (set DRILL_CONTEXT to override)" >&2; exit 1; }
+
 ns="${DRILL_NAMESPACE:-default}"
 k() { kubectl -n "$ns" "$@"; }
 
@@ -25,13 +30,12 @@ echo ">> cleanup from previous runs"
 k delete sandboxclaim hello-1 --ignore-not-found --wait=true >/dev/null 2>&1 || true
 
 echo ">> apply template + pool + claim"
-t0=$(now_ms)
 k apply -f hello-world.yaml >/dev/null
 ready_ms=$(wait_cond sandboxclaim/hello-1 Ready 180)
 sandbox="$(k get sandboxclaim hello-1 -o jsonpath='{.status.sandbox.name}')"
 echo "   claim Ready in ${ready_ms}ms, bound sandbox: $sandbox"
 
-pod="$(k get pods -l 'agents.x-k8s.io/sandbox-name' -o name 2>/dev/null | head -1 || true)"
+pod="$(k get pods -l 'agents.x-k8s.io/sandbox-name-hash' -o name 2>/dev/null | head -1 || true)"
 [ -z "$pod" ] && pod="$(k get pods -o name | grep "$sandbox" | head -1)"
 echo "   pod: $pod"
 k wait --for=condition=Ready "$pod" --timeout=60s >/dev/null
@@ -39,7 +43,6 @@ marker_before="$(k exec "${pod#pod/}" -- cat /data/marker)"
 echo "   marker: $marker_before"
 
 echo ">> suspend"
-t1=$(now_ms)
 k patch sandbox "$sandbox" --type=merge -p '{"spec":{"operatingMode":"Suspended"}}' >/dev/null
 suspend_ms=$(wait_cond "sandbox/$sandbox" Suspended 120)
 pvcs="$(k get pvc -o name | grep "$sandbox" || true)"
@@ -50,10 +53,10 @@ if k get pods -o name | grep -q "$sandbox"; then
 fi
 
 echo ">> resume"
-t2=$(now_ms)
 k patch sandbox "$sandbox" --type=merge -p '{"spec":{"operatingMode":"Running"}}' >/dev/null
 resume_ms=$(wait_cond "sandbox/$sandbox" Ready 120)
-pod="$(k get pods -o name | grep "$sandbox" | head -1)"
+pod="$(k get pods -o name | grep "$sandbox" | head -1 || true)"
+[ -n "$pod" ] || { echo "FAIL: no pod found for sandbox $sandbox" >&2; exit 1; }
 k wait --for=condition=Ready "$pod" --timeout=60s >/dev/null
 marker_after="$(k exec "${pod#pod/}" -- cat /data/marker)"
 echo "   Ready=True in ${resume_ms}ms; marker after resume: $marker_after"

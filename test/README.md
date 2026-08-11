@@ -23,23 +23,24 @@ version is pinned in the script (`AGENT_SANDBOX_VERSION`).
 ## Layout
 
 - `env/` — local environment bootstrap.
-- `fixtures/` — applied by the Go e2e suite by path: a busybox
-  template/pool (fast suspend) and the lifecycle-manager's exact RBAC.
+- `fixtures/` — `template.yaml` (busybox template/pool, fast suspend) is
+  applied by the Go e2e suite by path; `rbac.yaml` is the lifecycle-manager's
+  exact RBAC as a reference artifact, mirrored by the chart.
 - `drills/` — script-driven scenarios against real components, numbered in
   dependency order. Each `run.sh` is idempotent and prints a timing table
   or next-step instructions; `2-live-discord/down.sh` tears down.
 
 ## Drill prerequisites
 
-- **`drills/1-agent-session`**: a hermes-agent image in the minikube docker
-  daemon (`nousresearch/hermes-agent:<release>` or a local build), the
-  connector image (`hrc:e2e` local build or the GHCR release), and a seed
+- **`drills/1-agent-session`**: images tagged exactly `hermes-agent:local`
+  and `hrc:e2e` in the local docker daemon (the drill loads them into
+  minikube; the GHCR connector fallback applies to `make e2e`, not here), and a seed
   home directory — `make-seed.sh <dir>` turns `.env` (LLM key),
   `auth.json`, `config.yaml`, `SOUL.md` into the cluster Secrets. Nothing
   secret is ever committed.
-- **`drills/2-live-discord`**: a Discord bot token file
-  (`DRILL_DISCORD_TOKEN_FILE`, default `~/.config/hrc/discord.token`) and
-  `DRILL_BOT_ID` (your bot's application id). Uses the chart itself with
+- **`drills/2-live-discord`**: `DRILL_SEED_DIR` (same seed home), a Discord
+  bot token file (`DRILL_DISCORD_TOKEN_FILE`, default
+  `~/.config/hrc/discord.token`) and `DRILL_BOT_ID` (your bot's application id). Uses the chart itself with
   fast dev timings, so it doubles as chart validation.
 
 ## Conventions

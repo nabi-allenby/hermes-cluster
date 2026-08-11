@@ -2,7 +2,7 @@
 
 ## Setup
 
-Go 1.24+, docker, minikube, helm. Then:
+Go 1.25+, docker, minikube, helm. Then:
 
 ```bash
 make minikube-up   # local test environment (minikube + pinned agent-sandbox)

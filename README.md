@@ -56,13 +56,13 @@ Every acceptance criterion has passed **live** (measured reference:
 
 ## Install (Helm)
 
-Prereqs: agent-sandbox v0.5.4 CRDs + controller installed, and two Secrets
-you create out of band (see [charts/README.md](charts/README.md) — seed home
-with the LLM key, Discord bot token).
+Prereqs: agent-sandbox v0.5.4 CRDs + controller installed, one required
+Secret (the seed home with the LLM key) and, for Discord, an optional
+bot-token Secret (see [charts/README.md](charts/README.md)).
 
 ```bash
 helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-cluster \
-  --version 0.2.1 -n hermes --create-namespace
+  --version 0.2.2 -n hermes --create-namespace
 ```
 
 Then create a session and talk to your bot:

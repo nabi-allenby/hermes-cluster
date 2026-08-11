@@ -1,8 +1,9 @@
 # lifecycle-manager HTTP API
 
-Listener: `HLM_LISTEN` (default `:8080`). All bodies and responses are JSON;
+Listener: `HLM_LISTEN` (default `:8080`). `/v1/*` and `/status` bodies and
+responses are JSON;
 errors are `{"error": "<message>"}`. When `HLM_API_TOKEN(_FILE)` is set, `/v1/*`
-requires `Authorization: Bearer <token>`. `/wake/*`, `/healthz`, `/readyz`, and
+requires `Authorization: Bearer <token>` (`401` otherwise). `/wake/*`, `/healthz`, `/readyz`, and
 `/status` are never authenticated — the connector's wake poke is a bare GET.
 
 ## Sessions
@@ -81,8 +82,8 @@ cooldown-gated poke retries; a lost poke degrades to delivery-on-next-resume).
 
 ## Health / status
 
-- `GET /healthz` — `200 ok` (process liveness).
-- `GET /readyz` — `200` when the Kubernetes API answers, else `503`.
+- `GET /healthz` — `200`, plain-text `ok` (process liveness).
+- `GET /readyz` — `200 {"ready": true}` when the Kubernetes API answers, else `503`.
 - `GET /status` — session counts by state, connector reachability/throttle,
   and the latest reconcile report:
 

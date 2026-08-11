@@ -18,8 +18,8 @@
 #     pod/sandbox name equals the claim name; warm-pool adoption would break
 #     that equality, so this template is meant for replicas: 0 pools only.
 #
-# The image runs its s6 bootstrap as root and drops to the hermes user, so no
-# pod securityContext here; hardening belongs to the chart.
+# The image's s6 bootstrap needs root before dropping to the hermes user, so
+# neither this template nor the chart sets a session-pod securityContext.
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata:

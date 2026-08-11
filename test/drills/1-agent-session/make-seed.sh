@@ -9,15 +9,14 @@
 #   hrc-tokens              connector admin + provision tokens (generated,
 #                           reused if the Secret already exists)
 #   hermes-provision-token  the provision token again, mounted into agent pods
-#   hermes-bootstrap        bootstrap.py (ConfigMap, from this directory)
+#   hermes-bootstrap        bootstrap.py (ConfigMap, from the chart's files/)
 #
-# Usage: make-seed.sh [seed-dir]     (default: ~/Downloads/.hermes-container-home,
-#                                     the home proven by the connector's Docker demo)
+# Usage: make-seed.sh [seed-dir]     (or set DRILL_SEED_DIR)
 set -euo pipefail
 cd "$(dirname "$0")"
 
 ns="${DRILL_NAMESPACE:-default}"
-seed_dir="${1:-$HOME/Downloads/.hermes-container-home}"
+seed_dir="${1:-${DRILL_SEED_DIR:?provide a seed dir as arg or DRILL_SEED_DIR}}"
 k() { kubectl -n "$ns" "$@"; }
 
 for f in auth.json config.yaml SOUL.md .env; do
@@ -35,6 +34,11 @@ k create secret generic hermes-home-seed \
   --from-file=SOUL.md="$seed_dir/SOUL.md" \
   --from-file=.env="$tmp/env" \
   --dry-run=client -o yaml | k apply -f - >/dev/null
+
+if [ "${DRILL_SEED_ONLY:-0}" = "1" ]; then
+  echo "seed-only mode: hermes-home-seed ready in namespace $ns"
+  exit 0
+fi
 
 echo ">> hrc-tokens + hermes-provision-token"
 if k get secret hrc-tokens >/dev/null 2>&1; then

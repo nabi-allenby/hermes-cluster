@@ -63,24 +63,28 @@ spec:
             - name: HLM_CONNECTOR_ENABLED
               value: "true"
             - name: HLM_CONNECTOR_URL
-              value: {{ include "hp.connectorURL" . }}
+              value: {{ include "hc.connectorURL" . }}
             - name: HLM_CONNECTOR_ADMIN_TOKEN
               valueFrom:
-                secretKeyRef: {name: {{ include "hp.tokensSecretName" . }}, key: admin-token}
+                secretKeyRef: {name: {{ include "hc.tokensSecretName" . }}, key: admin-token}
             - name: HLM_CONNECTOR_PROVISION_TOKEN
               valueFrom:
-                secretKeyRef: {name: {{ include "hp.tokensSecretName" . }}, key: provision-token}
+                secretKeyRef: {name: {{ include "hc.tokensSecretName" . }}, key: provision-token}
             - name: HLM_CONNECTOR_BOT_ID
               value: {{ .Values.session.botId | quote }}
             - name: HLM_WAKE_BASE_URL
-              value: {{ include "hp.wakeBaseURL" . }}
+              value: {{ include "hc.wakeBaseURL" . }}
             - name: HLM_SWEEP_INTERVAL
               value: {{ .Values.lifecycleManager.sweepInterval | quote }}
             - name: HLM_IDLE_TIMEOUT
               value: {{ .Values.lifecycleManager.idleTimeout | quote }}
             - name: HLM_TTL
               value: {{ .Values.lifecycleManager.ttl | quote }}
-            {{- if .Values.lifecycleManager.apiToken }}
+            {{- if .Values.lifecycleManager.apiTokenSecret }}
+            - name: HLM_API_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.lifecycleManager.apiTokenSecret }}, key: token}
+            {{- else if .Values.lifecycleManager.apiToken }}
             - name: HLM_API_TOKEN
               value: {{ .Values.lifecycleManager.apiToken | quote }}
             {{- end }}

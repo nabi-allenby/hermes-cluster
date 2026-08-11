@@ -8,12 +8,18 @@
 #
 # Prereqs: minikube running with agent-sandbox installed (test/env/minikube-up.sh),
 # images hermes-agent:local and hrc:e2e in the local docker daemon, and a seed
-# home directory for make-seed.sh (default ~/Downloads/.hermes-container-home).
+# home directory for make-seed.sh (set DRILL_SEED_DIR).
 #
-# Env: DRILL_NAMESPACE (default), DRILL_ECHO=0 to skip the LLM round-trip check,
-# DRILL_KEEP=1 to leave the connector + template installed after the run.
+# Env: DRILL_SEED_DIR (required, via make-seed.sh), DRILL_NAMESPACE (default),
+# DRILL_ECHO=0 to skip the LLM round-trip check, DRILL_REQUIRE_ECHO=1 to fail
+# on it, DRILL_KEEP=1 to leave the connector + template installed after.
 set -euo pipefail
 cd "$(dirname "$0")"
+
+# Refuse to run against a non-local cluster by accident.
+ctx="$(kubectl config current-context 2>/dev/null || true)"
+want="${DRILL_CONTEXT:-minikube}"
+[ "$ctx" = "$want" ] || { echo "FAIL: kubectl context is '$ctx', expected '$want' (set DRILL_CONTEXT to override)" >&2; exit 1; }
 
 ns="${DRILL_NAMESPACE:-default}"
 claim="s-drill-1"
@@ -119,7 +125,7 @@ ready_ms=$(wait_cond "sandboxclaim/$claim" Ready 300)
 sandbox="$(k get sandboxclaim "$claim" -o jsonpath='{.status.sandbox.name}')"
 [ "$sandbox" = "$claim" ] \
   || { echo "FAIL: cold-start sandbox name ($sandbox) != claim name; gatewayId derivation broken" >&2; exit 1; }
-pod="$(k get pods -o name | grep "$sandbox" | head -1)"
+pod="$(k get pods -o name | grep "$sandbox" | head -1 || true)"
 [ "${pod#pod/}" = "$claim" ] \
   || { echo "FAIL: pod name (${pod#pod/}) != claim name; gatewayId derivation broken" >&2; exit 1; }
 echo "   claim Ready in ${ready_ms}ms; pod == sandbox == claim == gatewayId"
@@ -152,7 +158,6 @@ print(a.get('content') or a.get('text') or '')" 2>/dev/null || true)"
 fi
 
 echo ">> suspend (graceful going_idle expected)"
-t1=$(now_ms)
 k patch sandbox "$sandbox" --type=merge -p '{"spec":{"operatingMode":"Suspended"}}' >/dev/null
 suspend_ms=$(wait_cond "sandbox/$sandbox" Suspended 120)
 disc_ms=$(wait_instance connected False 30)

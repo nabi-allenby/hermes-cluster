@@ -1,12 +1,13 @@
 # hermes-cluster chart values. Cloud-specific knobs (storageClass, identity
-# annotations) are values; everything with a cloud ID belongs to Terraform.
+# annotations, scheduling) are values; cloud resources belong to whatever
+# provisions your cluster.
 
 connector:
   image: ghcr.io/nabi-allenby/hermes-relay-connector:0.2.0
   imagePullPolicy: IfNotPresent
-  # Discord bot token Secret (key: token). Created out of band (or by the
-  # terraform platform module). Empty => connector runs without Discord
-  # (echo/relay only — useful for dev clusters).
+  # Discord bot token Secret (key: token), created out of band. Empty =>
+  # connector runs without Discord (echo/relay only — useful for dev
+  # clusters).
   discordTokenSecret: hrc-discord-token
   # Admin/provision tokens: generated on first install and reused on upgrade.
   # Set existingTokensSecret to bring your own (keys: admin-token,
@@ -27,8 +28,11 @@ lifecycleManager:
   sweepInterval: 60s
   idleTimeout: 30m
   ttl: "0"
-  # Optional bearer on /v1/* (never /wake). Empty disables.
+  # Optional bearer on /v1/* (never /wake). Prefer apiTokenSecret — the name
+  # of a Secret with key `token`; apiToken embeds the value in the rendered
+  # manifest and is for dev only. Both empty disables the guard.
   apiToken: ""
+  apiTokenSecret: ""
   logLevel: info
   resources:
     requests: {cpu: 50m, memory: 64Mi}

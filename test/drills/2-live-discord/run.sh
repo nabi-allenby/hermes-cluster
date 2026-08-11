@@ -4,12 +4,17 @@
 #
 #   DM the bot -> reply -> go idle -> auto-suspend -> DM again -> wake -> reply
 #
-# Prereqs: the agent-session drill's prereqs (see ../1-agent-session/run.sh),
-# plus a Discord bot token file (default ~/.config/hrc/discord.token) and
-# your bot's application id in DRILL_BOT_ID.
+# Prereqs: DRILL_SEED_DIR (seed home for make-seed.sh), a Discord bot token
+# file (default ~/.config/hrc/discord.token), and your bot's application id
+# in DRILL_BOT_ID.
 # Leaves everything RUNNING; tear down with ./down.sh
 set -euo pipefail
 cd "$(dirname "$0")"
+
+# Refuse to run against a non-local cluster by accident.
+ctx="$(kubectl config current-context 2>/dev/null || true)"
+want="${DRILL_CONTEXT:-minikube}"
+[ "$ctx" = "$want" ] || { echo "FAIL: kubectl context is '$ctx', expected '$want' (set DRILL_CONTEXT to override)" >&2; exit 1; }
 
 ns="${DRILL_NAMESPACE:-hermes}"
 session="${DRILL_SESSION:-s-live-1}"
@@ -25,16 +30,17 @@ kubectl get crd sandboxclaims.extensions.agents.x-k8s.io >/dev/null \
 
 echo ">> secrets (seed reused from the agent-session drill tooling)"
 kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-DRILL_NAMESPACE="$ns" ../1-agent-session/make-seed.sh >/dev/null
+DRILL_NAMESPACE="$ns" DRILL_SEED_ONLY=1 ../1-agent-session/make-seed.sh >/dev/null
 k create secret generic hrc-discord-token --from-file=token="$token_file" \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
 echo ">> helm install/upgrade (dev timings)"
 helm upgrade --install hermes "$chart" -n "$ns" \
-  --set session.botId="$bot_id" \
+  --set-string session.botId="$bot_id" \
   --set connector.wakeCooldownSeconds=5 \
   --set lifecycleManager.sweepInterval=15s >/dev/null
-k rollout status deploy/hermes-hrc deploy/hermes-hlm --timeout=180s >/dev/null
+k rollout status deploy/hermes-hrc --timeout=180s >/dev/null
+k rollout status deploy/hermes-hlm --timeout=180s >/dev/null
 
 echo ">> discord shard"
 pf_pid=""

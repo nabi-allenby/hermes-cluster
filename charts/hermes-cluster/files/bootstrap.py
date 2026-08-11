@@ -77,7 +77,7 @@ for key, value in {
 }.items():
     pattern = re.compile(rf"^{re.escape(key)}=.*$", re.M)
     if pattern.search(env):
-        env = pattern.sub(f"{key}={value}", env)
+        env = pattern.sub(lambda _m: f"{key}={value}", env)
     else:
         if env and not env.endswith("\n"):
             env += "\n"
