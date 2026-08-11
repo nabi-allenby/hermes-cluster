@@ -1,6 +1,6 @@
 # Cross-compile from the build platform: Go needs no emulation for arm64,
 # so multi-arch builds never pay the QEMU tax.
-FROM --platform=$BUILDPLATFORM golang:1.25 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
 ARG TARGETOS TARGETARCH VERSION=dev
 WORKDIR /src
 COPY go.mod go.sum ./
