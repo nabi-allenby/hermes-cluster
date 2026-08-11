@@ -26,6 +26,10 @@ const (
 	AnnoIdleTimeoutSeconds = "hermes.nabi.dev/idle-timeout-seconds"
 	AnnoConnector          = "hermes.nabi.dev/connector"
 	AnnoDisplayName        = "hermes.nabi.dev/display-name"
+	// AnnoWakeAt (RFC3339, UTC) schedules a wake for a suspended session —
+	// written by the idle sweeper when a cron fire is due after suspension,
+	// processed by the sweep loop, cleared on wake (issue #2, Wake v2).
+	AnnoWakeAt = "hermes.nabi.dev/wake-at"
 )
 
 // idPattern is a DNS-1123 label: the id doubles as the claim name and the

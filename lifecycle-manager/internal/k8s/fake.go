@@ -44,6 +44,8 @@ func (f *Fake) AddSession(name string, createdAt time.Time, annotations map[stri
 		Ready:         ready,
 		ReadyChanged:  createdAt,
 		Suspended:     mode == "Suspended",
+		// Mimic a bound Service so status-polling tests have a target.
+		ServiceFQDN: name,
 	}
 }
 
@@ -125,6 +127,30 @@ func (f *Fake) DeleteClaim(_ context.Context, name string) error {
 	delete(f.claims, name)
 	if c.SandboxName != "" {
 		delete(f.sandboxes, c.SandboxName)
+	}
+	return nil
+}
+
+func (f *Fake) PatchClaimAnnotations(_ context.Context, name string, annotations map[string]*string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.init()
+	if f.Err != nil {
+		return f.Err
+	}
+	c, ok := f.claims[name]
+	if !ok {
+		return fmt.Errorf("claim %q: %w", name, ErrNotFound)
+	}
+	if c.Annotations == nil {
+		c.Annotations = map[string]string{}
+	}
+	for k, v := range annotations {
+		if v == nil {
+			delete(c.Annotations, k)
+		} else {
+			c.Annotations[k] = *v
+		}
 	}
 	return nil
 }

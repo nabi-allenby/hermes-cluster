@@ -5,6 +5,7 @@ package k8s
 // one-file change. Facts verified against v0.5.4 — see docs/agent-sandbox.md.
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -61,7 +62,8 @@ func claimFromUnstructured(u *unstructured.Unstructured) (*Claim, error) {
 	return c, nil
 }
 
-// sandboxFromUnstructured extracts operatingMode and the two conditions.
+// sandboxFromUnstructured extracts operatingMode, the two conditions, and
+// the service FQDN.
 func sandboxFromUnstructured(u *unstructured.Unstructured) (*Sandbox, error) {
 	s := &Sandbox{Name: u.GetName()}
 	mode, _, err := unstructured.NestedString(u.Object, "spec", "operatingMode")
@@ -69,6 +71,12 @@ func sandboxFromUnstructured(u *unstructured.Unstructured) (*Sandbox, error) {
 		return nil, fmt.Errorf("sandbox %s: spec.operatingMode: %w", s.Name, err)
 	}
 	s.OperatingMode = mode
+
+	fqdn, _, err := unstructured.NestedString(u.Object, "status", "serviceFQDN")
+	if err != nil {
+		return nil, fmt.Errorf("sandbox %s: status.serviceFQDN: %w", s.Name, err)
+	}
+	s.ServiceFQDN = fqdn
 
 	conditions, _, err := unstructured.NestedSlice(u.Object, "status", "conditions")
 	if err != nil {
@@ -99,4 +107,16 @@ func sandboxFromUnstructured(u *unstructured.Unstructured) (*Sandbox, error) {
 // operatingModePatch is the JSON merge patch flipping a sandbox's mode.
 func operatingModePatch(mode string) []byte {
 	return []byte(fmt.Sprintf(`{"spec":{"operatingMode":%q}}`, mode))
+}
+
+// annotationsPatch is the JSON merge patch for claim annotations: RFC 7386
+// makes a null value delete the key, which map[string]*string models directly.
+func annotationsPatch(annotations map[string]*string) []byte {
+	b, err := json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{"annotations": annotations},
+	})
+	if err != nil {
+		panic(err) // map[string]*string cannot fail to marshal
+	}
+	return b
 }

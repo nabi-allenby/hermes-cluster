@@ -2,14 +2,17 @@ package sweeper
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 	"time"
 
+	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/agent"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/connector"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/k8s"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/lifecycle"
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/reconcile"
+	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/session"
 )
 
 type sweepConnector struct {
@@ -28,6 +31,31 @@ func (s *sweepConnector) DeleteInstance(_ context.Context, id string) error {
 	return nil
 }
 
+// sweepAgent is a scripted agent.Client: reports and cron fires keyed by
+// target (the Fake binds ServiceFQDN == session name).
+type sweepAgent struct {
+	agent.Disabled
+	reports  map[string]*agent.Report // absent key = unreachable
+	nextFire map[string]*time.Time
+	cronCred bool
+	cronErr  error
+}
+
+func (a *sweepAgent) Enabled() bool        { return true }
+func (a *sweepAgent) CronConfigured() bool { return a.cronCred }
+func (a *sweepAgent) Status(_ context.Context, target string) (*agent.Report, error) {
+	if r, ok := a.reports[target]; ok {
+		return r, nil
+	}
+	return nil, errors.New("connection refused")
+}
+func (a *sweepAgent) NextCronFire(_ context.Context, target string) (*time.Time, error) {
+	if a.cronErr != nil {
+		return nil, a.cronErr
+	}
+	return a.nextFire[target], nil
+}
+
 func newRunner(fake *k8s.Fake, conn connector.Client) (*Runner, *reconcile.Store) {
 	log := slog.New(slog.DiscardHandler)
 	manager := &lifecycle.Manager{
@@ -36,7 +64,16 @@ func newRunner(fake *k8s.Fake, conn connector.Client) (*Runner, *reconcile.Store
 		Log:      log,
 	}
 	store := &reconcile.Store{}
-	return &Runner{Manager: manager, Interval: time.Minute, Reconcile: store, Log: log}, store
+	return &Runner{
+		Manager: manager, Interval: time.Minute, Reconcile: store, Log: log,
+		IdleHorizon: 5 * time.Minute, WakeBootMargin: 2 * time.Minute,
+	}, store
+}
+
+// relayIdle builds a connector instance that passes every Idle v1 guard.
+func relayIdle(name string) connector.Instance {
+	old := time.Now().Add(-2 * time.Hour).Unix()
+	return connector.Instance{GatewayID: name, LastInboundAt: &old, LastOutboundAt: &old}
 }
 
 func TestTTLSweepDecommissions(t *testing.T) {
@@ -95,6 +132,197 @@ func TestIdleSweepSuspends(t *testing.T) {
 	// s-nocon is managed but not connector-flagged: not an orphan on either side.
 	if len(report.ClaimsWithoutInstances) != 0 || len(report.InstancesWithoutClaims) != 0 {
 		t.Fatalf("unexpected orphans: %+v", report)
+	}
+}
+
+// TestIdleSweepRespectsAgentActivity is the issue #2 regression test: relay
+// silence alone must not suspend when the agent reports work in progress.
+func TestIdleSweepRespectsAgentActivity(t *testing.T) {
+	fake := &k8s.Fake{}
+	created := time.Now().Add(-3 * time.Hour)
+	anno := map[string]string{"hermes.nabi.dev/connector": "true"}
+	for _, name := range []string{"s-quiet", "s-workflow", "s-desktop", "s-unreach", "s-fresh"} {
+		fake.AddSession(name, created, anno, "Running", true)
+	}
+
+	conn := &sweepConnector{enabled: true, instances: []connector.Instance{
+		relayIdle("s-quiet"), relayIdle("s-workflow"), relayIdle("s-desktop"),
+		relayIdle("s-unreach"), relayIdle("s-fresh"),
+	}}
+	runner, _ := newRunner(fake, conn)
+	runner.Manager.Agent = &sweepAgent{reports: map[string]*agent.Report{
+		"s-quiet":    {},
+		"s-workflow": {ActiveAgents: 1},   // long workflow, relay-silent mid-run
+		"s-desktop":  {ActiveSessions: 1}, // desktop chat, invisible to the relay
+		"s-fresh":    {},
+		// s-unreach: no report -> unreachable -> unknown -> not idle
+	}}
+	old := time.Now().Add(-time.Hour)
+	runner.quietSince = map[string]time.Time{
+		"s-quiet": old,
+		"s-fresh": time.Now().Add(-time.Minute), // quiet, but not long enough
+	}
+	runner.sweep(context.Background(), false)
+
+	want := map[string]string{
+		"s-quiet":    "Suspended",
+		"s-workflow": "Running",
+		"s-desktop":  "Running",
+		"s-unreach":  "Running",
+		"s-fresh":    "Running",
+	}
+	for name, wantMode := range want {
+		sb, err := fake.GetSandbox(context.Background(), name)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if sb.OperatingMode != wantMode {
+			t.Errorf("%s: mode %q, want %q", name, sb.OperatingMode, wantMode)
+		}
+	}
+	// Busy/unreachable observations must reset the quiet clock.
+	if _, ok := runner.quietSince["s-workflow"]; ok {
+		t.Error("busy session kept a quiet clock")
+	}
+	if _, ok := runner.quietSince["s-unreach"]; ok {
+		t.Error("unreachable session kept a quiet clock")
+	}
+}
+
+func TestIdleSweepCronGate(t *testing.T) {
+	newIdleFake := func(name string) (*k8s.Fake, *sweepConnector) {
+		fake := &k8s.Fake{}
+		fake.AddSession(name, time.Now().Add(-3*time.Hour),
+			map[string]string{"hermes.nabi.dev/connector": "true"}, "Running", true)
+		return fake, &sweepConnector{enabled: true, instances: []connector.Instance{relayIdle(name)}}
+	}
+	quietFor := func(r *Runner, name string) {
+		r.quietSince = map[string]time.Time{name: time.Now().Add(-time.Hour)}
+	}
+
+	t.Run("imminent fire blocks suspend", func(t *testing.T) {
+		fake, conn := newIdleFake("s-cron")
+		runner, _ := newRunner(fake, conn)
+		fire := time.Now().Add(3 * time.Minute) // inside the 5m horizon
+		runner.Manager.Agent = &sweepAgent{
+			reports:  map[string]*agent.Report{"s-cron": {}},
+			nextFire: map[string]*time.Time{"s-cron": &fire},
+			cronCred: true,
+		}
+		quietFor(runner, "s-cron")
+		runner.sweep(context.Background(), false)
+
+		sb, _ := fake.GetSandbox(context.Background(), "s-cron")
+		if sb.OperatingMode == "Suspended" {
+			t.Fatal("suspended despite an imminent cron fire")
+		}
+	})
+
+	t.Run("distant fire suspends with wake-at", func(t *testing.T) {
+		fake, conn := newIdleFake("s-cron")
+		runner, _ := newRunner(fake, conn)
+		fire := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+		runner.Manager.Agent = &sweepAgent{
+			reports:  map[string]*agent.Report{"s-cron": {}},
+			nextFire: map[string]*time.Time{"s-cron": &fire},
+			cronCred: true,
+		}
+		quietFor(runner, "s-cron")
+		runner.sweep(context.Background(), false)
+
+		sb, _ := fake.GetSandbox(context.Background(), "s-cron")
+		if sb.OperatingMode != "Suspended" {
+			t.Fatal("expected suspend with a scheduled wake")
+		}
+		claim, _ := fake.GetClaim(context.Background(), "s-cron")
+		got := claim.Annotations[session.AnnoWakeAt]
+		want := fire.Add(-2 * time.Minute).Format(time.RFC3339)
+		if got != want {
+			t.Fatalf("wake-at %q, want %q", got, want)
+		}
+	})
+
+	t.Run("unreadable schedule defers suspend", func(t *testing.T) {
+		fake, conn := newIdleFake("s-cron")
+		runner, _ := newRunner(fake, conn)
+		runner.Manager.Agent = &sweepAgent{
+			reports:  map[string]*agent.Report{"s-cron": {}},
+			cronCred: true,
+			cronErr:  errors.New("401 unauthorized"),
+		}
+		quietFor(runner, "s-cron")
+		runner.sweep(context.Background(), false)
+
+		sb, _ := fake.GetSandbox(context.Background(), "s-cron")
+		if sb.OperatingMode == "Suspended" {
+			t.Fatal("suspended although the cron schedule was unknown (must fail closed)")
+		}
+	})
+
+	t.Run("no credentials skips the cron gate", func(t *testing.T) {
+		fake, conn := newIdleFake("s-cron")
+		runner, _ := newRunner(fake, conn)
+		runner.Manager.Agent = &sweepAgent{
+			reports:  map[string]*agent.Report{"s-cron": {}},
+			cronCred: false,
+			cronErr:  errors.New("must not be called"),
+		}
+		quietFor(runner, "s-cron")
+		runner.sweep(context.Background(), false)
+
+		sb, _ := fake.GetSandbox(context.Background(), "s-cron")
+		if sb.OperatingMode != "Suspended" {
+			t.Fatal("expected suspend when the cron gate is unconfigured")
+		}
+	})
+}
+
+func TestScheduledWakeProcessing(t *testing.T) {
+	anno := func(wakeAt string) map[string]string {
+		return map[string]string{
+			"hermes.nabi.dev/connector": "true",
+			session.AnnoWakeAt:          wakeAt,
+		}
+	}
+	past := time.Now().Add(-time.Minute).UTC().Format(time.RFC3339)
+	future := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
+
+	fake := &k8s.Fake{}
+	fake.AddSession("s-due", time.Now().Add(-3*time.Hour), anno(past), "Suspended", false)
+	fake.AddSession("s-later", time.Now().Add(-3*time.Hour), anno(future), "Suspended", false)
+	fake.AddSession("s-junk", time.Now().Add(-3*time.Hour), anno("not-a-time"), "Suspended", false)
+	fake.AddSession("s-stale", time.Now().Add(-3*time.Hour), anno(past), "Running", true)
+
+	conn := &sweepConnector{enabled: true}
+	runner, _ := newRunner(fake, conn)
+	runner.sweep(context.Background(), false)
+
+	sb, _ := fake.GetSandbox(context.Background(), "s-due")
+	if sb.OperatingMode != "Running" {
+		t.Error("due scheduled wake did not resume the session")
+	}
+	claim, _ := fake.GetClaim(context.Background(), "s-due")
+	if claim.Annotations[session.AnnoWakeAt] != "" {
+		t.Error("wake-at not cleared after the scheduled wake")
+	}
+
+	sb, _ = fake.GetSandbox(context.Background(), "s-later")
+	if sb.OperatingMode != "Suspended" {
+		t.Error("future scheduled wake fired early")
+	}
+
+	claim, _ = fake.GetClaim(context.Background(), "s-junk")
+	if claim.Annotations[session.AnnoWakeAt] != "" {
+		t.Error("malformed wake-at not cleared")
+	}
+	sb, _ = fake.GetSandbox(context.Background(), "s-junk")
+	if sb.OperatingMode != "Suspended" {
+		t.Error("malformed wake-at must not wake the session")
+	}
+
+	claim, _ = fake.GetClaim(context.Background(), "s-stale")
+	if claim.Annotations[session.AnnoWakeAt] != "" {
+		t.Error("stale wake-at on a running session not cleared")
 	}
 }
 

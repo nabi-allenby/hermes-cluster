@@ -64,6 +64,15 @@ spec:
             matchLabels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: 8420
+    {{- if and .Values.session.serve.enabled .Values.lifecycleManager.statusPoll.enabled }}
+    # Idle v2 status polling: /api/status + cron schedule on session pods.
+    - to:
+        - podSelector:
+            matchExpressions:
+              - {key: agents.x-k8s.io/sandbox-name-hash, operator: Exists}
+      ports:
+        - port: {{ .Values.session.serve.port }}
+    {{- end }}
     - ports:
         - {port: 53, protocol: UDP}
         - {port: 53, protocol: TCP}
@@ -77,7 +86,18 @@ spec:
     matchExpressions:
       - {key: agents.x-k8s.io/sandbox-name-hash, operator: Exists}
   policyTypes: [Ingress, Egress]
+  {{- if and .Values.session.serve.enabled .Values.lifecycleManager.statusPoll.enabled }}
+  # The only thing that dials an agent pod is the lifecycle-manager's Idle
+  # v2 status poll against the serve container; everything else dials out.
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: lifecycle-manager, app.kubernetes.io/instance: {{ .Release.Name }}}
+      ports:
+        - port: {{ .Values.session.serve.port }}
+  {{- else }}
   # No ingress: nothing dials an agent; it dials out.
+  {{- end }}
   egress:
     - to:
         - podSelector:

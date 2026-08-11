@@ -45,6 +45,16 @@ lifecycleManager:
   apiToken: ""
   apiTokenSecret: ""
   logLevel: info
+  # Idle v2 (issue #2): suspend decisions poll each session's serve container
+  # (/api/status) for agent-reported activity — relay silence alone never
+  # suspends. Requires session.serve.enabled; disable both to fall back to
+  # the v1 connector-only sweeper.
+  statusPoll:
+    enabled: true
+    # A cron fire within this window blocks the suspend entirely.
+    idleHorizon: 5m
+    # Scheduled wakes fire this early so the gateway is up when cron ticks.
+    wakeBootMargin: 2m
   resources:
     requests: {cpu: 50m, memory: 64Mi}
     limits: {cpu: 500m, memory: 256Mi}
@@ -77,6 +87,21 @@ session:
   # e.g. [{name: acr-pull}] for a private registry the nodes can't reach
   # via identity (kubernetes.io/dockerconfigjson Secret, created out of band).
   imagePullSecrets: []
+  # Serve container: `hermes serve` beside the gateway, sharing its home
+  # volume. It is the Idle v2 activity surface the lifecycle-manager polls
+  # (/api/status is public; the cron schedule needs the basic-auth secret
+  # below) and, later, the desktop-access dashboard (issue #1). Upstream
+  # refuses non-loopback binds without an auth provider, hence the
+  # throwaway basic-auth credential even with no public exposure.
+  serve:
+    enabled: true
+    port: 9119
+    # BYO Secret with keys `username` and `password`; empty generates one
+    # on first install and reuses it across upgrades.
+    existingAuthSecret: ""
+    resources:
+      requests: {cpu: 25m, memory: 128Mi}
+      limits: {cpu: 500m, memory: 512Mi}
 
 networkPolicy:
   # Default-on. Requires a CNI that enforces NetworkPolicy (AKS: Azure CNI /

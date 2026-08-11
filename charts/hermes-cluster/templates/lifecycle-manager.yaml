@@ -80,6 +80,24 @@ spec:
               value: {{ .Values.lifecycleManager.idleTimeout | quote }}
             - name: HLM_TTL
               value: {{ .Values.lifecycleManager.ttl | quote }}
+            {{- if and .Values.lifecycleManager.statusPoll.enabled .Values.session.serve.enabled }}
+            # Idle v2 (issue #2): poll session serve containers so suspends
+            # key off agent-reported activity, not just relay traffic.
+            - name: HLM_STATUS_ENABLED
+              value: "true"
+            - name: HLM_STATUS_PORT
+              value: {{ .Values.session.serve.port | quote }}
+            - name: HLM_STATUS_BASIC_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: username}
+            - name: HLM_STATUS_BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
+            - name: HLM_IDLE_HORIZON
+              value: {{ .Values.lifecycleManager.statusPoll.idleHorizon | quote }}
+            - name: HLM_WAKE_BOOT_MARGIN
+              value: {{ .Values.lifecycleManager.statusPoll.wakeBootMargin | quote }}
+            {{- end }}
             {{- if .Values.lifecycleManager.apiTokenSecret }}
             - name: HLM_API_TOKEN
               valueFrom:

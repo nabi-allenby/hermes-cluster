@@ -33,6 +33,10 @@ type Sandbox struct {
 	Ready         bool
 	ReadyChanged  time.Time // Ready condition's lastTransitionTime
 	Suspended     bool
+	// ServiceFQDN is status.serviceFQDN — the sandbox Service's stable
+	// in-cluster address, the target for agent status polling. Empty until
+	// the controller publishes it.
+	ServiceFQDN string
 }
 
 // ClaimSpec is the input to CreateClaim.
@@ -49,6 +53,9 @@ type Client interface {
 	// ListClaims returns managed claims only (ManagedLabel selector).
 	ListClaims(ctx context.Context) ([]Claim, error)
 	DeleteClaim(ctx context.Context, name string) error
+	// PatchClaimAnnotations merge-patches claim annotations: a nil value
+	// removes the key. Used for the scheduled-wake annotation (wake-at).
+	PatchClaimAnnotations(ctx context.Context, name string, annotations map[string]*string) error
 	GetSandbox(ctx context.Context, name string) (*Sandbox, error)
 	PatchSandboxOperatingMode(ctx context.Context, name, mode string) error
 	// Ping verifies API-server reachability (used by /readyz).

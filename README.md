@@ -134,6 +134,11 @@ delivery-on-next-resume, never loss.
 | `HLM_CONNECTOR_BOT_ID` / `HLM_CONNECTOR_PLATFORM` | — / `discord` | provision parameters |
 | `HLM_WAKE_BASE_URL` | — | base for registered wake URLs (`<base>/wake/<id>`) |
 | `HLM_ORPHAN_POLICY` | `report` | claims↔instances drift is reported in `/status`, never auto-deleted |
+| `HLM_STATUS_ENABLED` | `false` | Idle v2: poll session pods' `/api/status` so suspends key off agent-reported activity (requires the chart's serve container) |
+| `HLM_STATUS_PORT` / `HLM_STATUS_TIMEOUT` | `9119` / `3s` | serve-container port and per-poll timeout |
+| `HLM_STATUS_BASIC_AUTH_USERNAME` / `HLM_STATUS_BASIC_AUTH_PASSWORD(_FILE)` | unset | credential for the auth-gated cron schedule; both unset skips the cron gate |
+| `HLM_IDLE_HORIZON` | `5m` | a cron fire within this window blocks the suspend |
+| `HLM_WAKE_BOOT_MARGIN` | `2m` | scheduled wakes fire this early before the cron |
 | `HLM_LOG_LEVEL` / `HLM_LOG_FORMAT` | `info` / `json` | logging |
 
 Durations accept Go syntax (`30m`) or bare seconds (`1800`). `*_FILE`

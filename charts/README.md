@@ -24,7 +24,11 @@ echo-buffer → wake → drain → decommission cascade; measured timings in
    conformance-verified around commit `244d296`.
 
 Admin/provision tokens are generated on first install and kept across
-upgrades (`connector.existingTokensSecret` to bring your own).
+upgrades (`connector.existingTokensSecret` to bring your own). The same
+applies to the session dashboard basic-auth credential
+(`session.serve.existingAuthSecret`, keys `username`/`password`) — the
+throwaway login that satisfies `hermes serve`'s non-loopback auth
+requirement and lets the lifecycle-manager read the cron schedule.
 
 ## Install
 
@@ -61,3 +65,12 @@ Dev-loop timings: `--set connector.wakeCooldownSeconds=5 --set lifecycleManager.
 - The `dnsPolicy: ClusterFirst` in the template is load-bearing:
   agent-sandbox v0.5.4 otherwise renders sandbox pods with public resolvers
   and cluster Services never resolve ([../docs/agent-sandbox.md](../docs/agent-sandbox.md)).
+- **Idle v2** (`lifecycleManager.statusPoll` + `session.serve`, both
+  default-on since 0.6.0): sessions grow a `serve` container the sweeper
+  polls for agent-reported activity before suspending
+  ([hermes-private-cluster#2](https://github.com/nabi-allenby/hermes-private-cluster/issues/2)).
+  Sessions provisioned before the upgrade keep their old pod spec until the
+  next resume or `/restart`; the sweeper fails closed (won't suspend) while
+  a session lacks the serve container — cycle old sessions to re-enable
+  their idle sweeping. Disabling `session.serve.enabled` without also
+  disabling `statusPoll` blocks all suspends the same way.
