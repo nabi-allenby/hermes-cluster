@@ -2,12 +2,12 @@
 {{- if .Values.connector.existingTokensSecret -}}
 {{- .Values.connector.existingTokensSecret -}}
 {{- else -}}
-{{- printf "%s-connector-tokens" .Release.Name -}}
+{{- printf "%s-relay-connector-tokens" .Release.Name -}}
 {{- end -}}
 {{- end -}}
 
 {{- define "hc.connectorURL" -}}
-{{- printf "http://%s-connector:8420" .Release.Name -}}
+{{- printf "http://%s-relay-connector:8420" .Release.Name -}}
 {{- end -}}
 
 {{- define "hc.wakeBaseURL" -}}

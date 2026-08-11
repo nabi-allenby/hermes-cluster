@@ -5,21 +5,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-connector
-  labels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+  name: {{ .Release.Name }}-relay-connector
+  labels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
 spec:
   replicas: 1
   strategy: {type: Recreate}
   selector:
-    matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+    matchLabels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+      labels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
     spec:
       securityContext:
         fsGroup: 65532
       containers:
-        - name: connector
+        - name: relay-connector
           image: {{ .Values.connector.image }}
           imagePullPolicy: {{ .Values.connector.imagePullPolicy }}
           env:
@@ -76,7 +76,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-connector-buffer
+            claimName: {{ .Release.Name }}-relay-connector-buffer
         {{- if .Values.connector.discordTokenSecret }}
         - name: discord
           secret:
@@ -89,7 +89,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-connector-buffer
+  name: {{ .Release.Name }}-relay-connector-buffer
 spec:
   accessModes: ["ReadWriteOnce"]
   {{- with .Values.connector.buffer.storageClass }}
@@ -102,9 +102,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-connector
+  name: {{ .Release.Name }}-relay-connector
 spec:
-  selector: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+  selector: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
   ports:
     - port: 8420
       targetPort: 8420

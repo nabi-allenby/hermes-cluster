@@ -33,7 +33,7 @@ version is pinned in the script (`AGENT_SANDBOX_VERSION`).
 ## Drill prerequisites
 
 - **`drills/1-agent-session`**: images tagged exactly `hermes-agent:local`
-  and `hrc:e2e` in the local docker daemon (the drill loads them into
+  and `relay-connector:e2e` in the local docker daemon (the drill loads them into
   minikube; the GHCR connector fallback applies to `make e2e`, not here), and a seed
   home directory — `make-seed.sh <dir>` turns `.env` (LLM key),
   `auth.json`, `config.yaml`, `SOUL.md` into the cluster Secrets. Nothing

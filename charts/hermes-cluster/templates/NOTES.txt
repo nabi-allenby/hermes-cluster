@@ -1,7 +1,7 @@
 hermes-cluster installed.
 
 Components:
-  connector:          {{ .Release.Name }}-connector:8420   (Discord{{ if not .Values.connector.discordTokenSecret }} DISABLED — no token secret{{ end }})
+  connector:          {{ .Release.Name }}-relay-connector:8420   (Discord{{ if not .Values.connector.discordTokenSecret }} DISABLED — no token secret{{ end }})
   lifecycle-manager:  {{ .Release.Name }}-lifecycle-manager:{{ .Values.lifecycleManager.listenPort }}
   session template:   {{ .Values.session.templateName }} (pool {{ .Values.session.warmPoolName }}, {{ .Values.session.warmReplicas }} spares)
 

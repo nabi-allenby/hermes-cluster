@@ -34,7 +34,7 @@ minikube-up: ## start minikube + install pinned agent-sandbox
 drill-substrate: minikube-up ## claim -> suspend -> PVC survives -> resume
 	test/drills/0-substrate/run.sh
 
-# Needs images hermes-agent + hrc in the local docker daemon and a seed home
+# Needs images hermes-agent + relay-connector in the local docker daemon and a seed home
 # dir for make-seed.sh (see test/README.md).
 drill-agent: minikube-up ## real agent session: boot -> connect -> suspend -> wake -> drain
 	test/drills/1-agent-session/run.sh

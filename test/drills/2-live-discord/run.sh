@@ -31,7 +31,7 @@ kubectl get crd sandboxclaims.extensions.agents.x-k8s.io >/dev/null \
 echo ">> secrets (seed reused from the agent-session drill tooling)"
 kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 DRILL_NAMESPACE="$ns" DRILL_SEED_ONLY=1 ../1-agent-session/make-seed.sh >/dev/null
-k create secret generic hrc-discord-token --from-file=token="$token_file" \
+k create secret generic relay-connector-discord-token --from-file=token="$token_file" \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
 echo ">> helm install/upgrade (dev timings)"

@@ -22,5 +22,5 @@ if k get deploy hermes-lifecycle-manager >/dev/null 2>&1; then
 fi
 k delete sandboxclaim "$session" --ignore-not-found --wait=false >/dev/null 2>&1 || true
 helm uninstall hermes -n "$ns" >/dev/null 2>&1 || true
-k delete secret hrc-discord-token --ignore-not-found >/dev/null
+k delete secret relay-connector-discord-token --ignore-not-found >/dev/null
 echo "live-discord drill torn down (hermes-home-seed kept; discord token secret removed)"

@@ -30,7 +30,7 @@ spec:
     spec:
       # agent-sandbox v0.5.4 defaults sandbox pods to dnsPolicy None with
       # public resolvers (8.8.8.8/1.1.1.1) when the template is silent --
-      # cluster service names (our `hrc` connector) don't resolve. Explicit
+      # cluster service names (our `relay-connector`) don't resolve. Explicit
       # ClusterFirst survives the defaulting.
       dnsPolicy: ClusterFirst
       terminationGracePeriodSeconds: 30
@@ -81,7 +81,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: HERMES_RELAY_URL
-              value: http://hrc:8420
+              value: http://relay-connector:8420
             - name: HERMES_RELAY_BOT_ID
               value: dev-bot
           volumeMounts:

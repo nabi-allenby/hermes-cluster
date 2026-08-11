@@ -7,7 +7,7 @@
 #   -> decommission cascade
 #
 # Prereqs: minikube running with agent-sandbox installed (test/env/minikube-up.sh),
-# images hermes-agent:local and hrc:e2e in the local docker daemon, and a seed
+# images hermes-agent:local and relay-connector:e2e in the local docker daemon, and a seed
 # home directory for make-seed.sh (set DRILL_SEED_DIR).
 #
 # Env: DRILL_SEED_DIR (required, via make-seed.sh), DRILL_NAMESPACE (default),
@@ -84,7 +84,7 @@ wait_instance() { # field expected timeout_s -> echoes elapsed ms
 echo ">> prereqs"
 kubectl get crd sandboxclaims.extensions.agents.x-k8s.io >/dev/null \
   || { echo "FAIL: agent-sandbox not installed (run test/env/minikube-up.sh)" >&2; exit 1; }
-for img in hermes-agent:local hrc:e2e; do
+for img in hermes-agent:local relay-connector:e2e; do
   if ! minikube image ls | grep -q "${img/:/.*}"; then
     docker image inspect "$img" >/dev/null 2>&1 \
       || { echo "FAIL: image $img not in local docker (build it first)" >&2; exit 1; }
@@ -95,12 +95,12 @@ done
 
 echo ">> secrets + bootstrap"
 DRILL_NAMESPACE="$ns" ./make-seed.sh >/dev/null
-admin_token="$(k get secret hrc-tokens -o jsonpath='{.data.admin-token}' | base64 -d)"
+admin_token="$(k get secret relay-connector-tokens -o jsonpath='{.data.admin-token}' | base64 -d)"
 
 echo ">> connector"
 k apply -f connector.yaml >/dev/null
-k rollout status deploy/hrc --timeout=60s >/dev/null
-k port-forward svc/hrc 18420:8420 >/dev/null 2>&1 &
+k rollout status deploy/relay-connector --timeout=60s >/dev/null
+k port-forward svc/relay-connector 18420:8420 >/dev/null 2>&1 &
 pf_pid=$!
 for _ in $(seq 1 20); do curl -sf http://127.0.0.1:18420/metrics >/dev/null && break; sleep 0.5; done
 

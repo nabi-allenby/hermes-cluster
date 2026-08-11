@@ -4,10 +4,10 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-connector
+  name: {{ .Release.Name }}-relay-connector
 spec:
   podSelector:
-    matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+    matchLabels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
@@ -48,7 +48,7 @@ spec:
     # kubectl port-forward, which NetworkPolicy does not gate.
     - from:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: {{ .Values.lifecycleManager.listenPort }}
   egress:
@@ -61,7 +61,7 @@ spec:
         - port: 8443
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: 8420
     - ports:
@@ -81,7 +81,7 @@ spec:
   egress:
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: relay-connector, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: 8420
     # LLM APIs and the agent's own tooling (https only).

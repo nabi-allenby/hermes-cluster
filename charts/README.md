@@ -16,7 +16,7 @@ echo-buffer → wake → drain → decommission cascade; measured timings in
 2. **Secret `hermes-home-seed`** — first-boot `HERMES_HOME`: keys `.env`
    (LLM key), `auth.json`, `config.yaml`, `SOUL.md`. Build locally with
    `test/drills/1-agent-session/make-seed.sh`.
-3. **Secret `hrc-discord-token`** (key `token`) — optional; without it the
+3. **Secret `relay-connector-discord-token`** (key `token`) — optional; without it the
    connector runs Discord-less (echo/relay only).
 4. **The agent image** (`session.image`) — defaults to the official
    multi-arch `nousresearch/hermes-agent:v2026.8.3` (Docker Hub). Pin a

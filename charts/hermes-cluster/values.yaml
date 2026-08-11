@@ -8,7 +8,7 @@ connector:
   # Discord bot token Secret (key: token), created out of band. Empty =>
   # connector runs without Discord (echo/relay only — useful for dev
   # clusters).
-  discordTokenSecret: hrc-discord-token
+  discordTokenSecret: relay-connector-discord-token
   # Admin/provision tokens: generated on first install and reused on upgrade.
   # Set existingTokensSecret to bring your own (keys: admin-token,
   # provision-token).

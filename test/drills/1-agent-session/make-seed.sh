@@ -6,7 +6,7 @@
 #                           config.yaml, SOUL.md, and .env stripped of the
 #                           GATEWAY_RELAY_* lines (the boot-time self-provision
 #                           owns those)
-#   hrc-tokens              connector admin + provision tokens (generated,
+#   relay-connector-tokens              connector admin + provision tokens (generated,
 #                           reused if the Secret already exists)
 #   hermes-provision-token  the provision token again, mounted into agent pods
 #   hermes-bootstrap        bootstrap.py (ConfigMap, from the chart's files/)
@@ -40,13 +40,13 @@ if [ "${DRILL_SEED_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-echo ">> hrc-tokens + hermes-provision-token"
-if k get secret hrc-tokens >/dev/null 2>&1; then
-  prov_token="$(k get secret hrc-tokens -o jsonpath='{.data.provision-token}' | base64 -d)"
+echo ">> relay-connector-tokens + hermes-provision-token"
+if k get secret relay-connector-tokens >/dev/null 2>&1; then
+  prov_token="$(k get secret relay-connector-tokens -o jsonpath='{.data.provision-token}' | base64 -d)"
 else
   admin_token="$(openssl rand -hex 24)"
   prov_token="$(openssl rand -hex 24)"
-  k create secret generic hrc-tokens \
+  k create secret generic relay-connector-tokens \
     --from-literal=admin-token="$admin_token" \
     --from-literal=provision-token="$prov_token" >/dev/null
 fi
