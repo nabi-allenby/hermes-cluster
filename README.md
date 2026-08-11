@@ -10,8 +10,8 @@ This repo is the platform library:
 - **lifecycle-manager** — a small, stateless Go service: session CRUD over
   HTTP, `/wake`, idle + TTL sweepers, connector integration, reconcile
   report. Image: `ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager`.
-- **hermes-platform chart** — the whole platform as one Helm release:
-  `oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform`.
+- **hermes-cluster chart** — the whole platform as one Helm release:
+  `oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-cluster`.
 
 The hard problems are delegated to pinned externals:
 [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox)
@@ -48,8 +48,8 @@ you create out of band (see [charts/README.md](charts/README.md) — seed home
 with the LLM key, Discord bot token).
 
 ```bash
-helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-platform \
-  --version 0.1.1 -n hermes --create-namespace
+helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-cluster \
+  --version 0.2.0 -n hermes --create-namespace
 ```
 
 Then create a session and talk to your bot:
@@ -136,7 +136,7 @@ the sweep cadence is the retry loop.
 | Path | What |
 |---|---|
 | `lifecycle-manager/` | the Go service (unit + e2e tests) |
-| `charts/hermes-platform/` | the platform chart (published as OCI on `chart-v*` tags) |
+| `charts/hermes-cluster/` | the platform chart (published as OCI on `chart-v*` tags) |
 | `docs/` | architecture, HTTP API, agent-sandbox substrate facts |
 | `hack/` | minikube bootstrap, e2e fixtures, reproducible drills ([hack/README.md](hack/README.md)) |
 | `docs/architecture.md` | the system design in one page |

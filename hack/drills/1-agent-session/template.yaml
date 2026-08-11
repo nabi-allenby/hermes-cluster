@@ -1,5 +1,5 @@
 # Standalone session template for the drill (the chart renders its own copy
-# of this recipe — charts/hermes-platform/templates/session-template.yaml is
+# of this recipe — charts/hermes-cluster/templates/session-template.yaml is
 # the canonical one; keep them in sync).
 #
 # The recipe (docs/architecture.md, 'Session pod boot'):

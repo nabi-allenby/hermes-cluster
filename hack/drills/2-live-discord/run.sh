@@ -15,7 +15,7 @@ ns="${PAC1_NAMESPACE:-hermes}"
 session="${PAC1_SESSION:-s-live-1}"
 bot_id="${PAC1_BOT_ID:?set PAC1_BOT_ID to your Discord application/bot id}"
 token_file="${PAC1_DISCORD_TOKEN_FILE:-$HOME/.config/hrc/discord.token}"
-chart="../../../charts/hermes-platform"
+chart="../../../charts/hermes-cluster"
 k() { kubectl -n "$ns" "$@"; }
 
 echo ">> prereqs"

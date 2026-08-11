@@ -44,8 +44,8 @@ drill-live: minikube-up ## the chart fronting your real Discord bot
 	hack/drills/2-live-discord/run.sh
 
 chart-lint: ## helm lint + render check
-	helm lint charts/hermes-platform
-	helm template t charts/hermes-platform >/dev/null
+	helm lint charts/hermes-cluster
+	helm template t charts/hermes-cluster >/dev/null
 
 # Expects a running minikube with agent-sandbox installed (make minikube-up).
 e2e: ## e2e tiers 1-2 (minikube; +docker for the connector tier)

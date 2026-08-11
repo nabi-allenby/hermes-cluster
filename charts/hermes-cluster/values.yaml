@@ -1,4 +1,4 @@
-# hermes-platform values. Cloud-specific knobs (storageClass, identity
+# hermes-cluster chart values. Cloud-specific knobs (storageClass, identity
 # annotations) are values; everything with a cloud ID belongs to Terraform.
 
 connector:

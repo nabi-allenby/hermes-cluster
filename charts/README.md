@@ -1,4 +1,4 @@
-# charts/hermes-platform
+# charts/hermes-cluster
 
 The platform as a Helm chart: connector Deployment + buffer PVC (1 replica,
 `Recreate` — SQLite), lifecycle-manager Deployment + RBAC, the P-M1 session
@@ -28,7 +28,7 @@ upgrades (`connector.existingTokensSecret` to bring your own).
 ## Install
 
 ```bash
-helm install hermes charts/hermes-platform -n hermes --create-namespace
+helm install hermes charts/hermes-cluster -n hermes --create-namespace
 ```
 
 Dev-loop timings: `--set connector.wakeCooldownSeconds=5 --set lifecycleManager.sweepInterval=15s`.
