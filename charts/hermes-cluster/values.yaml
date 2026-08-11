@@ -3,7 +3,7 @@
 # provisions your cluster.
 
 connector:
-  image: ghcr.io/nabi-allenby/hermes-relay-connector:0.2.0
+  image: ghcr.io/nabi-allenby/hermes-relay-connector:0.3.0
   imagePullPolicy: IfNotPresent
   # Discord bot token Secret (key: token), created out of band. Empty =>
   # connector runs without Discord (echo/relay only — useful for dev
@@ -14,6 +14,17 @@ connector:
   # provision-token).
   existingTokensSecret: ""
   wakeCooldownSeconds: 60
+  # Discord self-provisioning: allowlisted users create their own agent
+  # session with /provision and attach channels with /bind (/unbind).
+  # Enabling switches routing to STRICT binding-only — unbound chats drop
+  # fail-closed instead of falling back to the single registered gateway.
+  provisioning:
+    enabled: false
+    # Discord user ids allowed to talk to the bot AT ALL (ingress author
+    # gate) and to run the provisioning commands. Empty = no author gate.
+    allowedUserIds: []
+    idleTimeoutSeconds: 1800
+    ttlSeconds: 0
   buffer:
     size: 1Gi
     storageClass: ""

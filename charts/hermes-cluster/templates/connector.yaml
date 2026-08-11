@@ -37,6 +37,25 @@ spec:
             {{- end }}
             - name: HRC_WAKE_COOLDOWN_SECS
               value: {{ .Values.connector.wakeCooldownSeconds | quote }}
+            {{- with .Values.connector.provisioning.allowedUserIds }}
+            - name: HRC_ALLOWED_USERS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- if .Values.connector.provisioning.enabled }}
+            - name: HRC_DISCORD_PROVISION
+              value: "1"
+            - name: HRC_LM_URL
+              value: http://{{ .Release.Name }}-hlm:{{ .Values.lifecycleManager.listenPort }}
+            - name: HRC_PROVISION_IDLE_SECS
+              value: {{ .Values.connector.provisioning.idleTimeoutSeconds | quote }}
+            - name: HRC_PROVISION_TTL_SECS
+              value: {{ .Values.connector.provisioning.ttlSeconds | quote }}
+            {{- if .Values.lifecycleManager.apiTokenSecret }}
+            - name: HRC_LM_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.lifecycleManager.apiTokenSecret }}, key: token}
+            {{- end }}
+            {{- end }}
           ports:
             - containerPort: 8420
           volumeMounts:
