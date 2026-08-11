@@ -12,8 +12,8 @@ want="${DRILL_CONTEXT:-minikube}"
 
 k() { kubectl -n "$ns" "$@"; }
 
-if k get deploy hermes-hlm >/dev/null 2>&1; then
-  k port-forward svc/hermes-hlm 18080:8080 >/dev/null 2>&1 &
+if k get deploy hermes-lifecycle-manager >/dev/null 2>&1; then
+  k port-forward svc/hermes-lifecycle-manager 18080:8080 >/dev/null 2>&1 &
   pf=$!
   trap '[ -n "$pf" ] && kill "$pf" 2>/dev/null || true' EXIT
   sleep 2

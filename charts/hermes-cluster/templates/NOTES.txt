@@ -1,8 +1,8 @@
 hermes-cluster installed.
 
 Components:
-  connector:          {{ .Release.Name }}-hrc:8420   (Discord{{ if not .Values.connector.discordTokenSecret }} DISABLED — no token secret{{ end }})
-  lifecycle-manager:  {{ .Release.Name }}-hlm:{{ .Values.lifecycleManager.listenPort }}
+  connector:          {{ .Release.Name }}-connector:8420   (Discord{{ if not .Values.connector.discordTokenSecret }} DISABLED — no token secret{{ end }})
+  lifecycle-manager:  {{ .Release.Name }}-lifecycle-manager:{{ .Values.lifecycleManager.listenPort }}
   session template:   {{ .Values.session.templateName }} (pool {{ .Values.session.warmPoolName }}, {{ .Values.session.warmReplicas }} spares)
 
 Prerequisites you provided out of band (the chart references, never creates):
@@ -12,7 +12,7 @@ Prerequisites you provided out of band (the chart references, never creates):
   {{- end }}
 
 Create a session:
-  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-hlm {{ .Values.lifecycleManager.listenPort }}:{{ .Values.lifecycleManager.listenPort }} &
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-lifecycle-manager {{ .Values.lifecycleManager.listenPort }}:{{ .Values.lifecycleManager.listenPort }} &
   curl -X POST localhost:{{ .Values.lifecycleManager.listenPort }}/v1/sessions \
     -H 'Content-Type: application/json' -d '{"connector":{}}'
 

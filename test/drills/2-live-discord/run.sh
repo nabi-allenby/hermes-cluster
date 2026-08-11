@@ -39,8 +39,8 @@ helm upgrade --install hermes "$chart" -n "$ns" \
   --set-string session.botId="$bot_id" \
   --set connector.wakeCooldownSeconds=5 \
   --set lifecycleManager.sweepInterval=15s >/dev/null
-k rollout status deploy/hermes-hrc --timeout=180s >/dev/null
-k rollout status deploy/hermes-hlm --timeout=180s >/dev/null
+k rollout status deploy/hermes-connector --timeout=180s >/dev/null
+k rollout status deploy/hermes-lifecycle-manager --timeout=180s >/dev/null
 
 echo ">> discord shard"
 pf_pid=""
@@ -48,7 +48,7 @@ trap '[ -n "$pf_pid" ] && kill "$pf_pid" 2>/dev/null || true' EXIT
 shard=""
 for _ in $(seq 1 30); do
   if [ -z "$pf_pid" ] || ! kill -0 "$pf_pid" 2>/dev/null; then
-    k port-forward svc/hermes-hrc 18420:8420 >/dev/null 2>&1 &
+    k port-forward svc/hermes-connector 18420:8420 >/dev/null 2>&1 &
     pf_pid=$!
   fi
   shard="$(curl -sf http://127.0.0.1:18420/metrics 2>/dev/null | grep '^hrc_discord_gateway_up' | awk '{print $2}' || true)"
@@ -59,7 +59,7 @@ done
 echo "   Discord shard READY"
 
 echo ">> create session $session through the LM"
-k port-forward svc/hermes-hlm 18080:8080 >/dev/null 2>&1 &
+k port-forward svc/hermes-lifecycle-manager 18080:8080 >/dev/null 2>&1 &
 lm_pf=$!
 trap '[ -n "$pf_pid" ] && kill "$pf_pid" 2>/dev/null; kill "$lm_pf" 2>/dev/null || true' EXIT
 for _ in $(seq 1 15); do curl -sf --max-time 2 http://127.0.0.1:18080/healthz >/dev/null 2>&1 && break; sleep 1; done
@@ -87,6 +87,6 @@ READY — machine side done. Now the human side:
      Watch: kubectl -n $ns get sandbox $session -w
   3. DM again while suspended: buffer -> wake poke -> resume -> reply.
 
-  LM logs:   kubectl -n $ns logs deploy/hermes-hlm -f
+  LM logs:   kubectl -n $ns logs deploy/hermes-lifecycle-manager -f
   Teardown:  ./down.sh
 EOF

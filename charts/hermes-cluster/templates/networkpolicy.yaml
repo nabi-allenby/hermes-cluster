@@ -4,10 +4,10 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-hrc
+  name: {{ .Release.Name }}-connector
 spec:
   podSelector:
-    matchLabels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+    matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
@@ -15,7 +15,7 @@ spec:
             matchExpressions:
               - {key: agents.x-k8s.io/sandbox-name-hash, operator: Exists}
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: hlm, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: lifecycle-manager, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: 8420
   egress:
@@ -27,7 +27,7 @@ spec:
     # Wake pokes to the lifecycle-manager.
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: hlm, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: lifecycle-manager, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: {{ .Values.lifecycleManager.listenPort }}
     # DNS.
@@ -38,17 +38,17 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-hlm
+  name: {{ .Release.Name }}-lifecycle-manager
 spec:
   podSelector:
-    matchLabels: {app.kubernetes.io/name: hlm, app.kubernetes.io/instance: {{ .Release.Name }}}
+    matchLabels: {app.kubernetes.io/name: lifecycle-manager, app.kubernetes.io/instance: {{ .Release.Name }}}
   policyTypes: [Ingress, Egress]
   ingress:
     # Wake pokes from the connector; operator access arrives via
     # kubectl port-forward, which NetworkPolicy does not gate.
     - from:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: {{ .Values.lifecycleManager.listenPort }}
   egress:
@@ -61,7 +61,7 @@ spec:
         - port: 8443
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: 8420
     - ports:
@@ -81,7 +81,7 @@ spec:
   egress:
     - to:
         - podSelector:
-            matchLabels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+            matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
       ports:
         - port: 8420
     # LLM APIs and the agent's own tooling (https only).

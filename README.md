@@ -68,7 +68,7 @@ helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-clus
 Then create a session and talk to your bot:
 
 ```bash
-kubectl -n hermes port-forward svc/hermes-hlm 8080:8080 &
+kubectl -n hermes port-forward svc/hermes-lifecycle-manager 8080:8080 &
 curl -X POST localhost:8080/v1/sessions -H 'Content-Type: application/json' \
   -d '{"connector":{}}'
 ```

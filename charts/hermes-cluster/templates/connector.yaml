@@ -5,21 +5,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-hrc
-  labels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+  name: {{ .Release.Name }}-connector
+  labels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
 spec:
   replicas: 1
   strategy: {type: Recreate}
   selector:
-    matchLabels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+    matchLabels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
   template:
     metadata:
-      labels: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+      labels: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
     spec:
       securityContext:
         fsGroup: 65532
       containers:
-        - name: hrc
+        - name: connector
           image: {{ .Values.connector.image }}
           imagePullPolicy: {{ .Values.connector.imagePullPolicy }}
           env:
@@ -45,7 +45,7 @@ spec:
             - name: HRC_DISCORD_PROVISION
               value: "1"
             - name: HRC_LM_URL
-              value: http://{{ .Release.Name }}-hlm:{{ .Values.lifecycleManager.listenPort }}
+              value: {{ include "hc.wakeBaseURL" . }}
             - name: HRC_PROVISION_IDLE_SECS
               value: {{ .Values.connector.provisioning.idleTimeoutSeconds | quote }}
             - name: HRC_PROVISION_TTL_SECS
@@ -76,7 +76,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-hrc-buffer
+            claimName: {{ .Release.Name }}-connector-buffer
         {{- if .Values.connector.discordTokenSecret }}
         - name: discord
           secret:
@@ -89,7 +89,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-hrc-buffer
+  name: {{ .Release.Name }}-connector-buffer
 spec:
   accessModes: ["ReadWriteOnce"]
   {{- with .Values.connector.buffer.storageClass }}
@@ -102,9 +102,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-hrc
+  name: {{ .Release.Name }}-connector
 spec:
-  selector: {app.kubernetes.io/name: hrc, app.kubernetes.io/instance: {{ .Release.Name }}}
+  selector: {app.kubernetes.io/name: connector, app.kubernetes.io/instance: {{ .Release.Name }}}
   ports:
     - port: 8420
       targetPort: 8420
