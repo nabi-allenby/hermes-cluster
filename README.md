@@ -138,7 +138,7 @@ the sweep cadence is the retry loop.
 | `lifecycle-manager/` | the Go service (unit + e2e tests) |
 | `charts/hermes-platform/` | the platform chart (published as OCI on `chart-v*` tags) |
 | `docs/` | HTTP API + substrate facts + measured run records |
-| `hack/` | minikube bootstrap and the reproducible drills (p-m0, p-m1, p-ac1) |
+| `hack/` | minikube bootstrap, e2e fixtures, reproducible drills ([hack/README.md](hack/README.md)) |
 | `HANDOVER.md` | full engineering log: decisions, surprises, open items |
 
 ## Pins

@@ -4,8 +4,8 @@ The real [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agen
 (conformance pin **@244d296**, image `hermes-agent:local`) running as an
 agent-sandbox session: PVC-backed `HERMES_HOME`, non-interactive boot to
 connected-idle against an in-cluster dev connector, and re-auth from persisted
-state across suspend/resume. Everything lives in `hack/p-m1/`; the drill is
-`hack/p-m1/run.sh` (`make p-m1`).
+state across suspend/resume. Everything lives in `hack/drills/1-agent-session/`; the drill is
+`hack/drills/1-agent-session/run.sh` (`make p-m1`).
 
 Design ref: design §10 P-M1. Acceptance ("Restart → re-auth from persisted
 state") is asserted by the drill's suspend → buffer → resume → drain leg.

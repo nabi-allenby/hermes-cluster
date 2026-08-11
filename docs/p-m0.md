@@ -70,7 +70,7 @@ the `extensions.` prefix. RBAC must name both groups.
   the controller renders sandbox pods with `dnsPolicy: None` and public resolvers
   (`8.8.8.8`, `1.1.1.1`) — cluster service names do not resolve from inside a sandbox.
   An explicit `dnsPolicy: ClusterFirst` in the template survives the defaulting
-  (hack/p-m1/template.yaml relies on this to reach the connector Service).
+  (hack/drills/1-agent-session/template.yaml relies on this to reach the connector Service).
 
 ## Ownership / cascade
 
@@ -99,7 +99,7 @@ Nothing else — no pods, secrets, or PVCs (design §4.2).
 | `Suspended` | `Suspended` not True | `Suspending` |
 | any | claim `deletionTimestamp` set | `Terminating` |
 
-## Timings (minikube, docker driver, hostpath storage; `hack/p-m0/run.sh`, 2026-08-10)
+## Timings (minikube, docker driver, hostpath storage; `hack/drills/0-substrate/run.sh`, 2026-08-10)
 
 | Step | Measured |
 |---|---|

@@ -1,4 +1,6 @@
-# P-M1 session template: the real hermes-agent image as a sandbox workload.
+# Standalone session template for the drill (the chart renders its own copy
+# of this recipe — charts/hermes-platform/templates/session-template.yaml is
+# the canonical one; keep them in sync).
 #
 # The recipe (docs/p-m1.md):
 #   - HERMES_HOME lives on the PVC (volumeClaimTemplate "home" -> /opt/data).

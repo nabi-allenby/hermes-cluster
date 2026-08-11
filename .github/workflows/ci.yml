@@ -85,6 +85,6 @@ jobs:
       - name: install agent-sandbox
         run: hack/minikube-up.sh
       - name: tier 0 (P-M0 suspend/resume loop)
-        run: hack/p-m0/run.sh
+        run: hack/drills/0-substrate/run.sh
       - name: e2e tests
         run: cd lifecycle-manager && go test -tags e2e -count=1 -timeout 20m ./e2e/...

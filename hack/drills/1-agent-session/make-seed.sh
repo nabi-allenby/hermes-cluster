@@ -50,9 +50,9 @@ k create secret generic hermes-provision-token \
   --from-literal=token="$prov_token" \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
-echo ">> hermes-bootstrap ConfigMap"
+echo ">> hermes-bootstrap ConfigMap (canonical copy lives in the chart)"
 k create configmap hermes-bootstrap \
-  --from-file=bootstrap.py=bootstrap.py \
+  --from-file=bootstrap.py=../../../charts/hermes-platform/files/bootstrap.py \
   --dry-run=client -o yaml | k apply -f - >/dev/null
 
 echo "seed + tokens ready in namespace $ns (no values printed)"

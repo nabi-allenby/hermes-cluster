@@ -14,7 +14,7 @@ echo-buffer → wake <2 s → drain → decommission cascade).
    see docs/p-m0.md for the manifest URL).
 2. **Secret `hermes-home-seed`** — first-boot `HERMES_HOME`: keys `.env`
    (LLM key), `auth.json`, `config.yaml`, `SOUL.md`. Build locally with
-   `hack/p-m1/make-seed.sh`.
+   `hack/drills/1-agent-session/make-seed.sh`.
 3. **Secret `hrc-discord-token`** (key `token`) — optional; without it the
    connector runs Discord-less (echo/relay only).
 4. **The agent image** (`session.image`) — defaults to the official

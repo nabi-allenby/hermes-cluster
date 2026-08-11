@@ -51,8 +51,7 @@ hermes-cluster/                        github.com/nabi-allenby/hermes-cluster (l
 │   └── p-m1.md                        ⭐ headless Hermes pod recipe + measured timings
 ├── hack/
 │   ├── minikube-up.sh                 minikube + pinned agent-sandbox install
-│   ├── p-m0/                          hello-world template/pool/claim + run.sh (tier-0 e2e)
-│   ├── p-m1/                          real-agent template, dev connector, seed tooling, drill
+│   ├── drills/                        0-substrate, 1-agent-session, 2-live-discord (see hack/README.md)
 │   └── e2e/                           rbac.yaml (exact LM RBAC), template.yaml (e2e pool)
 └── lifecycle-manager/                 Go module (…/lifecycle-manager), Go 1.24+
     ├── Dockerfile                     distroless static nonroot, cross-compiles ($BUILDPLATFORM)
@@ -215,7 +214,7 @@ minikube.
   auth exemption, deprovision-failure claim retention; sweeper integration
   over fakes; report-only orphan proof.
 - **e2e** (`make e2e`, `//go:build e2e`, skips cleanly when prereqs missing):
-  - Tier 0: `hack/p-m0/run.sh` — substrate suspend/resume/PVC/cascade loop.
+  - Tier 0: `hack/drills/0-substrate/run.sh` — substrate suspend/resume/PVC/cascade loop.
   - Tier 1 (minikube, no connector): CRUD, wake, TTL sweep, LM "restart".
   - Tier 2 (+docker): real connector container, **agentless full wake loop**
     via its echo API — provision → suspend → echo message buffers → real wake
@@ -252,11 +251,11 @@ loop are proven. **P-M1 ✅** — the real hermes-agent (@244d296,
 from Secret, boot-time self-provision, connected-idle in 5.7 s from claim
 create, graceful suspend (~4 s), re-auth from persisted state on resume,
 buffered backlog drains. Recipe + timings in docs/p-m1.md; drill
-`hack/p-m1/run.sh` (`make p-m1`). Substrate surprise found: sandbox pods
+`hack/drills/1-agent-session/run.sh` (`make p-m1`). Substrate surprise found: sandbox pods
 default to `dnsPolicy: None` with public resolvers — templates must set
 `ClusterFirst` explicitly (recorded in docs/p-m0.md).
 
-**P-AC1 ✅ (live, 2026-08-11, `hack/p-ac1/`)** — full loop on minikube with
+**P-AC1 ✅ (live, 2026-08-11, `hack/drills/2-live-discord/`)** — full loop on minikube with
 the in-cluster LM (its first in-cluster run) + connector fronting the real
 Discord bot (Apollo): DM → conversational LLM reply; ~2.5 min silence → idle
 sweeper suspends (pod gone, disk-only); DM while suspended → buffer → wake
@@ -266,7 +265,7 @@ connector left with zero instances. Notes: the LM ran in-cluster with RBAC
 from hack/e2e/rbac.yaml unchanged; `HRC_DEFAULT_GATEWAY` unset routes DMs to
 the single session; the seed home's OpenRouter key had expired and was
 refreshed (dead key symptom: agent replies "Provider authentication failed",
-OpenRouter returns 401 "User not found"). `hack/p-ac1/down.sh` tears the
+OpenRouter returns 401 "User not found"). `hack/drills/2-live-discord/down.sh` tears the
 demo down; the old Docker parity demo containers (`hrc`, `hermes-agent-1`)
 were `docker stop`ed to avoid double-fronting the bot — `docker start` them
 to restore.

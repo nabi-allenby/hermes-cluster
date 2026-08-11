@@ -27,12 +27,12 @@ minikube-up:
 	hack/minikube-up.sh
 
 p-m0: minikube-up
-	hack/p-m0/run.sh
+	hack/drills/0-substrate/run.sh
 
 # P-M1 needs images hermes-agent:local and hrc:e2e in the local docker daemon
 # plus a seed home dir for make-seed.sh (see docs/p-m1.md).
 p-m1: minikube-up
-	hack/p-m1/run.sh
+	hack/drills/1-agent-session/run.sh
 
 chart-lint:
 	helm lint charts/hermes-platform
