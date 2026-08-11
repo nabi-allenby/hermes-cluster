@@ -1,4 +1,4 @@
-hermes-platform installed.
+hermes-cluster installed.
 
 Components:
   connector:          {{ .Release.Name }}-hrc:8420   (Discord{{ if not .Values.connector.discordTokenSecret }} DISABLED — no token secret{{ end }})
