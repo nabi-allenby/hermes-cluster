@@ -277,6 +277,75 @@ func TestIdleSweepCronGate(t *testing.T) {
 	})
 }
 
+// TestBufferedWakeBackstop is the issue #20 regression test: a suspended
+// session with undelivered buffered messages must be woken by the sweep loop
+// — the connector's wake poke is single-shot per suspension epoch, so a lost
+// poke would otherwise strand the session until manual intervention.
+func TestBufferedWakeBackstop(t *testing.T) {
+	anno := map[string]string{"hermes.nabi.dev/connector": "true"}
+	buffered := func(name string, count int, revoked bool) connector.Instance {
+		inst := relayIdle(name)
+		inst.BufferedCount = count
+		inst.Revoked = revoked
+		return inst
+	}
+
+	fake := &k8s.Fake{}
+	created := time.Now().Add(-3 * time.Hour)
+	fake.AddSession("s-strand", created, anno, "Suspended", false)
+	fake.AddSession("s-empty", created, anno, "Suspended", false)
+	fake.AddSession("s-revoked", created, anno, "Suspended", false)
+	fake.AddSession("s-running", created, anno, "Running", true)
+	fake.AddSession("s-nocon", created, nil, "Suspended", false)
+
+	conn := &sweepConnector{enabled: true, instances: []connector.Instance{
+		buffered("s-strand", 2, false),
+		buffered("s-empty", 0, false),
+		buffered("s-revoked", 3, true),
+		// s-running: buffered while up (gateway mid-reconnect) — not ours to
+		// touch. nil activity timestamps keep the idle sweeper off it too.
+		{GatewayID: "s-running", BufferedCount: 1},
+	}}
+	runner, _ := newRunner(fake, conn)
+	runner.sweep(context.Background(), false)
+
+	want := map[string]string{
+		"s-strand":  "Running",   // the backstop: buffered + suspended -> woken
+		"s-empty":   "Suspended", // nothing pending
+		"s-revoked": "Suspended", // revoked instances are never woken
+		"s-running": "Running",   // already up; untouched
+		"s-nocon":   "Suspended", // not connector-managed
+	}
+	for name, wantMode := range want {
+		sb, err := fake.GetSandbox(context.Background(), name)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if sb.OperatingMode != wantMode {
+			t.Errorf("%s: mode %q, want %q", name, sb.OperatingMode, wantMode)
+		}
+	}
+}
+
+// TestBufferedWakeUnknownInstances: a throttled/unreachable connector yields
+// nil instances — the backstop must do nothing rather than guess.
+func TestBufferedWakeUnknownInstances(t *testing.T) {
+	fake := &k8s.Fake{}
+	fake.AddSession("s-strand", time.Now().Add(-3*time.Hour),
+		map[string]string{"hermes.nabi.dev/connector": "true"}, "Suspended", false)
+
+	runner, _ := newRunner(fake, &sweepConnector{enabled: false})
+	runner.sweep(context.Background(), false)
+
+	sb, err := fake.GetSandbox(context.Background(), "s-strand")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sb.OperatingMode != "Suspended" {
+		t.Fatalf("woke a session with no instance data; mode %q", sb.OperatingMode)
+	}
+}
+
 func TestScheduledWakeProcessing(t *testing.T) {
 	anno := func(wakeAt string) map[string]string {
 		return map[string]string{

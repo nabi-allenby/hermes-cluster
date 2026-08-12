@@ -83,6 +83,7 @@ func (r *Runner) sweep(parent context.Context, doReconcile bool) {
 			continue
 		}
 		r.sweepWake(ctx, claim, now)
+		r.sweepBufferedWake(ctx, claim, instances)
 		r.sweepTTL(ctx, claim, now)
 		r.sweepIdle(ctx, claim, instances, now)
 		if r.Exposure != nil {
@@ -127,6 +128,35 @@ func (r *Runner) sweepWake(ctx context.Context, claim *k8s.Claim, now time.Time)
 	r.Log.Info("scheduled wake due; resuming", "session", claim.Name, "wakeAt", wakeAt)
 	if err := r.Manager.Wake(ctx, claim.Name); err != nil {
 		r.Log.Error("scheduled wake failed; will retry next sweep", "session", claim.Name, "error", err)
+	}
+}
+
+// sweepBufferedWake wakes a suspended session whose connector instance has
+// undelivered buffered messages — the backstop for a lost wake poke (#20).
+// The connector pokes only on the buffer's empty→non-empty transition and
+// counts any HTTP response as sent, so a single transient failure at wake
+// time (LM restart, API-server blip) would otherwise strand the session
+// asleep with pending messages until manual intervention. Stateless and
+// idempotent: the sweep cadence is the retry loop, and the idle sweeper's
+// "nothing buffered" guard prevents a suspend/wake flap.
+func (r *Runner) sweepBufferedWake(ctx context.Context, claim *k8s.Claim, instances map[string]connector.Instance) {
+	if claim.Annotations[session.AnnoConnector] != "true" || instances == nil {
+		return
+	}
+	inst, ok := instances[claim.Name]
+	if !ok || inst.Revoked || inst.BufferedCount == 0 {
+		return
+	}
+	sb := r.Manager.Sandbox(ctx, claim)
+	// operatingMode covers Suspending too: a message that raced an in-flight
+	// suspend should also wake, and the patch is safe mid-suspension.
+	if sb == nil || sb.OperatingMode != "Suspended" {
+		return
+	}
+	r.Log.Info("buffered messages pending for suspended session; waking",
+		"session", claim.Name, "buffered", inst.BufferedCount)
+	if err := r.Manager.Wake(ctx, claim.Name); err != nil {
+		r.Log.Error("buffered wake failed; will retry next sweep", "session", claim.Name, "error", err)
 	}
 }
 

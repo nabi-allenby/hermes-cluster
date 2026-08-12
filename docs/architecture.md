@@ -99,9 +99,12 @@ suspend. A fire beyond the horizon stamps `wake-at = next_fire −
 boot_margin` on the claim *before* suspending; the sweep loop resumes the
 session when it passes, and any wake clears the annotation.
 
-**Wake** — a lost poke degrades to delivery-on-next-resume, never loss;
-`/wake` is idempotent (payload-free, unauthenticated, cooldown-limited) and
-safe mid-suspension:
+**Wake** — the connector's poke fires once per suspension epoch (on the
+buffer's empty→non-empty transition), so the sweep loop carries a backstop:
+a suspended session whose instance reports buffered messages is woken on
+the next sweep. A lost poke therefore costs at most one sweep interval,
+never a stranded session; `/wake` is idempotent (payload-free,
+unauthenticated, cooldown-limited) and safe mid-suspension:
 
 ```mermaid
 sequenceDiagram

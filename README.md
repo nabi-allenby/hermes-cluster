@@ -112,8 +112,9 @@ Two sweepers are the only writers of lifecycle intent:
 The wake loop: message to a suspended agent → connector buffers durably →
 pokes `GET /wake/{id}` → lifecycle-manager patches
 `operatingMode: Running` → pod recreates on the same PVC → gateway
-re-dials → backlog drains in order. A lost poke degrades to
-delivery-on-next-resume, never loss.
+re-dials → backlog drains in order. A lost poke never strands the session:
+the sweep loop wakes any suspended session whose instance still has
+buffered messages, so the worst case is one sweep interval of delay.
 
 ## Configuration (env)
 

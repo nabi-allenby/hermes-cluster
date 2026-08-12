@@ -87,8 +87,9 @@ Unconditionally patches the session's sandbox to `operatingMode: Running` and
 returns immediately. Idempotent; safe mid-suspension. This URL is what the
 lifecycle-manager registers as the connector's `wakeUrl`.
 
-`200 {"ok": true}` · `404 unknown session` · `500` (connector's next
-cooldown-gated poke retries; a lost poke degrades to delivery-on-next-resume).
+`200 {"ok": true}` · `404 unknown session` · `500` (harmless: the sweep
+loop wakes any suspended session with buffered messages, so a failed poke
+costs at most one sweep interval).
 
 ## Health / status
 
