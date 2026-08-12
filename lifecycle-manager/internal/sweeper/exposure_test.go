@@ -61,8 +61,8 @@ func TestSweepCreatesExposureObjects(t *testing.T) {
 		t.Fatalf("service spec incomplete: %+v", spec)
 	}
 
-	// API-created session: Service only — no Entra app exists for it, so
-	// no public hostname (PLAN T4).
+	// API-created session: Service only — no owner identity the broker
+	// could authorize, so no public hostname (PLAN T4).
 	spec, ok = fake.Exposure("s-abc1234567")
 	if !ok {
 		t.Fatal("no exposure for the API-created session")
