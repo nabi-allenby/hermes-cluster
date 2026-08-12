@@ -3,7 +3,7 @@
 # provisions your cluster.
 
 connector:
-  image: ghcr.io/nabi-allenby/hermes-relay-connector:0.6.0
+  image: ghcr.io/nabi-allenby/hermes-relay-connector:0.7.0
   imagePullPolicy: IfNotPresent
   # Discord bot token Secret (key: token), created out of band. Empty =>
   # connector runs without Discord (echo/relay only — useful for dev
