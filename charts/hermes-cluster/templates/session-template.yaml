@@ -86,29 +86,49 @@ spec:
         # Serve container (issue #2): the same image running `hermes serve`
         # against the shared home. Its /api/status is the agent-reported
         # activity surface the lifecycle-manager's Idle v2 sweeper polls
-        # (public even when the auth gate is on); the cron schedule behind
-        # the gate is read with the basic-auth credential. Upstream refuses
-        # a non-loopback bind without an auth provider, so the credential is
-        # mandatory even though no human ever logs in with it.
+        # (public even when the auth gate is on). Upstream refuses a
+        # non-loopback bind without an auth provider — see the two auth
+        # modes below.
         - name: serve
           image: {{ .Values.session.image }}
           imagePullPolicy: {{ .Values.session.imagePullPolicy }}
           args:
             - sh
             - -c
+{{- if .Values.dashboard.enabled }}
+            # Dashboard mode: OIDC only. No platform-held credential exists
+            # for a user's agent — a shared basic-auth secret would be
+            # operator backdoor access, and a second session provider also
+            # breaks Hermes Desktop's native login (it auto-selects only
+            # when exactly ONE session provider is registered). Sessions
+            # not yet onboarded (no client_id in their home config.yaml)
+            # fall back to an EPHEMERAL in-container credential: generated
+            # per boot, held by no one, satisfying the bind guard without
+            # granting anyone access.
+            - |
+              if grep -qE '^[[:space:]]*client_id:[[:space:]]*["'"'"']?[A-Za-z0-9]' /opt/data/config.yaml 2>/dev/null; then
+                unset HERMES_DASHBOARD_BASIC_AUTH_USERNAME HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
+              else
+                export HERMES_DASHBOARD_BASIC_AUTH_USERNAME=ephemeral
+                export HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=$(head -c 32 /dev/urandom | base64 | tr -d '=+/')
+                unset HERMES_DASHBOARD_OIDC_ISSUER HERMES_DASHBOARD_OIDC_SCOPES
+              fi
+              exec hermes serve --host 0.0.0.0 --port {{ .Values.session.serve.port }}
+{{- else }}
             - exec hermes serve --host 0.0.0.0 --port {{ .Values.session.serve.port }}
+{{- end }}
           env:
-            # Basic auth stays registered even with OIDC on: it is the
-            # lifecycle-manager's credential for the auth-gated cron read
-            # (Idle v2), and the providers coexist (verified upstream).
-            # It is NOT internet-reachable: the per-session Ingress routes
-            # /auth/password-login to a no-endpoints Service.
+            {{- if not .Values.dashboard.enabled }}
+            # Non-dashboard installs: the chart-held basic credential is the
+            # bind-guard auth provider and the lifecycle-manager's cron-read
+            # login (Idle v2 cron guard).
             - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: username}
             - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
+            {{- end }}
             {{- if .Values.dashboard.enabled }}
             # OIDC login for humans (issue #1). Client id and public URL
             # derive in-pod from the pod name (== session id; the shared

@@ -95,12 +95,18 @@ spec:
               value: "true"
             - name: HLM_STATUS_PORT
               value: {{ .Values.session.serve.port | quote }}
+            {{- if not .Values.dashboard.enabled }}
+            # Cron-aware suspend needs the auth-gated cron read. Dashboard
+            # mode drops the shared credential entirely (operator decision:
+            # no platform-held access to user agents), so the cron guard is
+            # skipped — the LM handles absent credentials by design.
             - name: HLM_STATUS_BASIC_AUTH_USERNAME
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: username}
             - name: HLM_STATUS_BASIC_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
+            {{- end }}
             - name: HLM_IDLE_HORIZON
               value: {{ .Values.lifecycleManager.statusPoll.idleHorizon | quote }}
             - name: HLM_WAKE_BOOT_MARGIN
