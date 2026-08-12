@@ -50,6 +50,14 @@ type Config struct {
 	IdleHorizon    time.Duration // cron fire within this window blocks a suspend
 	WakeBootMargin time.Duration // scheduled wakes fire this early before the cron
 
+	// Exposure (PLAN T4): per-session Services (Idle v2 poll targets —
+	// agent-sandbox creates none, issue #11) and dashboard Ingresses.
+	ExposureEnabled       bool
+	DashboardDomain       string // "" = Services only, no Ingresses
+	DashboardIngressClass string
+	DashboardTLSSecret    string // pre-issued wildcard cert Secret
+	DashboardDenyService  string // no-endpoints Service for the edge deny-list
+
 	LogLevel  string
 	LogFormat string
 }
@@ -113,6 +121,13 @@ func Load() (*Config, error) {
 	if c.WakeBootMargin, err = getDuration("HLM_WAKE_BOOT_MARGIN", 2*time.Minute); err != nil {
 		return nil, err
 	}
+	if c.ExposureEnabled, err = getBool("HLM_EXPOSURE_ENABLED", false); err != nil {
+		return nil, err
+	}
+	c.DashboardDomain = getenv("HLM_DASHBOARD_DOMAIN", "")
+	c.DashboardIngressClass = getenv("HLM_DASHBOARD_INGRESS_CLASS", "webapprouting.kubernetes.azure.com")
+	c.DashboardTLSSecret = getenv("HLM_DASHBOARD_TLS_SECRET", "")
+	c.DashboardDenyService = getenv("HLM_DASHBOARD_DENY_SERVICE", "")
 
 	if c.Namespace == "" {
 		if b, err := os.ReadFile(inClusterNamespaceFile); err == nil {
@@ -158,6 +173,23 @@ func Load() (*Config, error) {
 		}
 		if c.IdleHorizon < c.WakeBootMargin {
 			return nil, fmt.Errorf("HLM_IDLE_HORIZON (%s) must be >= HLM_WAKE_BOOT_MARGIN (%s): a wake scheduled inside the margin would fire immediately", c.IdleHorizon, c.WakeBootMargin)
+		}
+	}
+	if c.StatusEnabled && !c.ExposureEnabled {
+		// Not fatal for forward compatibility (a future agent-sandbox may
+		// publish serviceFQDN), but on v0.5.4 status polling without the
+		// exposure Services can never reach a pod — issue #11 exactly.
+		fmt.Fprintln(os.Stderr, "warning: HLM_STATUS_ENABLED without HLM_EXPOSURE_ENABLED: status polls have no target on agent-sandbox v0.5.4 (issue #11) and every suspend will be deferred")
+	}
+	if c.DashboardDomain != "" {
+		if !c.ExposureEnabled {
+			return nil, fmt.Errorf("HLM_DASHBOARD_DOMAIN requires HLM_EXPOSURE_ENABLED=true (Ingresses back onto the per-session Services)")
+		}
+		if c.DashboardTLSSecret == "" {
+			return nil, fmt.Errorf("HLM_DASHBOARD_TLS_SECRET is required when HLM_DASHBOARD_DOMAIN is set (the wildcard cert Secret)")
+		}
+		if c.DashboardDenyService == "" {
+			return nil, fmt.Errorf("HLM_DASHBOARD_DENY_SERVICE is required when HLM_DASHBOARD_DOMAIN is set (the /auth/password-login edge block must ship WITH the first Ingress, never after)")
 		}
 	}
 	return c, nil

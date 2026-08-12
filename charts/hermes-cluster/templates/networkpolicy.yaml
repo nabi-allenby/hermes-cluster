@@ -86,13 +86,21 @@ spec:
     matchExpressions:
       - {key: agents.x-k8s.io/sandbox-name-hash, operator: Exists}
   policyTypes: [Ingress, Egress]
-  {{- if and .Values.session.serve.enabled .Values.lifecycleManager.statusPoll.enabled }}
-  # The only thing that dials an agent pod is the lifecycle-manager's Idle
-  # v2 status poll against the serve container; everything else dials out.
+  {{- if or (and .Values.session.serve.enabled .Values.lifecycleManager.statusPoll.enabled) .Values.dashboard.enabled }}
+  # Exactly two things may dial an agent pod, both to the serve container:
+  # the lifecycle-manager's Idle v2 status poll, and (dashboard only) the
+  # ingress controller fronting the per-session hostname. Everything else
+  # dials out.
   ingress:
     - from:
+        {{- if and .Values.session.serve.enabled .Values.lifecycleManager.statusPoll.enabled }}
         - podSelector:
             matchLabels: {app.kubernetes.io/name: lifecycle-manager, app.kubernetes.io/instance: {{ .Release.Name }}}
+        {{- end }}
+        {{- if .Values.dashboard.enabled }}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: {{ .Values.dashboard.controllerNamespace }}}
+        {{- end }}
       ports:
         - port: {{ .Values.session.serve.port }}
   {{- else }}

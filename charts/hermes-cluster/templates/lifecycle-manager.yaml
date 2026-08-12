@@ -16,6 +16,14 @@ rules:
   - apiGroups: ["agents.x-k8s.io"]
     resources: ["sandboxes"]
     verbs: ["get", "list", "watch", "patch"]
+  # Exposure (issue #11 / dashboard): per-session Services + Ingresses.
+  # Create-only by design — deletion is Kubernetes GC via ownerReferences.
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -97,6 +105,22 @@ spec:
               value: {{ .Values.lifecycleManager.statusPoll.idleHorizon | quote }}
             - name: HLM_WAKE_BOOT_MARGIN
               value: {{ .Values.lifecycleManager.statusPoll.wakeBootMargin | quote }}
+            {{- end }}
+            {{- if .Values.session.serve.enabled }}
+            # Per-session Services: the status-poll target (agent-sandbox
+            # publishes status.selector but creates no Service — issue #11).
+            - name: HLM_EXPOSURE_ENABLED
+              value: "true"
+            {{- end }}
+            {{- if .Values.dashboard.enabled }}
+            - name: HLM_DASHBOARD_DOMAIN
+              value: {{ .Values.dashboard.domain | quote }}
+            - name: HLM_DASHBOARD_INGRESS_CLASS
+              value: {{ .Values.dashboard.ingressClassName | quote }}
+            - name: HLM_DASHBOARD_TLS_SECRET
+              value: {{ .Values.dashboard.tlsSecret | quote }}
+            - name: HLM_DASHBOARD_DENY_SERVICE
+              value: {{ .Release.Name }}-dashboard-deny
             {{- end }}
             {{- if .Values.lifecycleManager.apiTokenSecret }}
             - name: HLM_API_TOKEN

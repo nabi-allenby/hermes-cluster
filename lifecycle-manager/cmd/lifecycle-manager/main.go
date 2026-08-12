@@ -84,6 +84,15 @@ func main() {
 		Manager: manager, Interval: cfg.SweepInterval, Reconcile: store, Log: log,
 		IdleHorizon: cfg.IdleHorizon, WakeBootMargin: cfg.WakeBootMargin,
 	}
+	if cfg.ExposureEnabled {
+		runner.Exposure = &sweeper.ExposureConfig{
+			Port:         cfg.StatusPort,
+			Domain:       cfg.DashboardDomain,
+			IngressClass: cfg.DashboardIngressClass,
+			TLSSecret:    cfg.DashboardTLSSecret,
+			DenyService:  cfg.DashboardDenyService,
+		}
+	}
 	go runner.Run(ctx)
 
 	httpServer := &http.Server{

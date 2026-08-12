@@ -98,12 +98,37 @@ spec:
             - -c
             - exec hermes serve --host 0.0.0.0 --port {{ .Values.session.serve.port }}
           env:
+            # Basic auth stays registered even with OIDC on: it is the
+            # lifecycle-manager's credential for the auth-gated cron read
+            # (Idle v2), and the providers coexist (verified upstream).
+            # It is NOT internet-reachable: the per-session Ingress routes
+            # /auth/password-login to a no-endpoints Service.
             - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: username}
             - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
+            {{- if .Values.dashboard.enabled }}
+            # OIDC login for humans (issue #1). Client id and public URL
+            # derive in-pod from the pod name (== session id; the shared
+            # template carries no per-session values — the same invariant
+            # that keeps warm pools at 0).
+            - name: HERMES_SESSION_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HERMES_DASHBOARD_OIDC_ISSUER
+              value: {{ .Values.dashboard.oidcIssuer | quote }}
+            - name: HERMES_DASHBOARD_OIDC_CLIENT_ID
+              value: "hermes-$(HERMES_SESSION_ID)"
+            - name: HERMES_DASHBOARD_OIDC_SCOPES
+              value: {{ .Values.dashboard.oidcScopes | quote }}
+            # Mandatory behind the ingress: redirect_uri derives from this,
+            # not from proxy headers (verified upstream).
+            - name: HERMES_DASHBOARD_PUBLIC_URL
+              value: "https://$(HERMES_SESSION_ID).{{ .Values.dashboard.domain }}"
+            {{- end }}
           ports:
             - containerPort: {{ .Values.session.serve.port }}
           volumeMounts:

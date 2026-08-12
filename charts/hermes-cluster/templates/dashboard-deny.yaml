@@ -1,0 +1,20 @@
+{{- if .Values.dashboard.enabled }}
+# The edge deny-list backend: a Service with no selector and therefore no
+# endpoints. Per-session Ingresses route /auth/password-login here, so the
+# internet-facing answer is the controller's 503 — the shared basic-auth
+# credential (a full bypass of the IdP's assignment check) never gets a
+# public login surface, while staying available in-cluster for the
+# lifecycle-manager's cron read.
+#
+# 503 rather than 401/403 is deliberate: Hermes Desktop treats 401/403 as
+# "credentials dead", drops its tokens, and forces an interactive
+# re-login; 5xx keeps its retry loop alive.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dashboard-deny
+spec:
+  ports:
+    - port: {{ .Values.session.serve.port }}
+      targetPort: {{ .Values.session.serve.port }}
+{{- end }}

@@ -48,6 +48,7 @@ func newClaimObject(apiVersion, namespace string, spec ClaimSpec, managedLabel s
 func claimFromUnstructured(u *unstructured.Unstructured) (*Claim, error) {
 	c := &Claim{
 		Name:        u.GetName(),
+		UID:         string(u.GetUID()),
 		CreatedAt:   u.GetCreationTimestamp().Time,
 		Annotations: u.GetAnnotations(),
 		Terminating: u.GetDeletionTimestamp() != nil,
@@ -77,6 +78,12 @@ func sandboxFromUnstructured(u *unstructured.Unstructured) (*Sandbox, error) {
 		return nil, fmt.Errorf("sandbox %s: status.serviceFQDN: %w", s.Name, err)
 	}
 	s.ServiceFQDN = fqdn
+
+	selector, _, err := unstructured.NestedString(u.Object, "status", "selector")
+	if err != nil {
+		return nil, fmt.Errorf("sandbox %s: status.selector: %w", s.Name, err)
+	}
+	s.Selector = selector
 
 	conditions, _, err := unstructured.NestedSlice(u.Object, "status", "conditions")
 	if err != nil {

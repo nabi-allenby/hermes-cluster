@@ -35,6 +35,10 @@ type Runner struct {
 	IdleHorizon    time.Duration
 	WakeBootMargin time.Duration
 
+	// Exposure, when non-nil, makes each sweep ensure per-session
+	// Services (and dashboard Ingresses) exist — see exposure.go.
+	Exposure *ExposureConfig
+
 	// quietSince is the Idle v2 quiet clock, keyed by claim name: when the
 	// LM first observed the agent quiet, with no busy or unreachable
 	// observation since. In-memory on purpose (the LM is stateless): a
@@ -81,6 +85,9 @@ func (r *Runner) sweep(parent context.Context, doReconcile bool) {
 		r.sweepWake(ctx, claim, now)
 		r.sweepTTL(ctx, claim, now)
 		r.sweepIdle(ctx, claim, instances, now)
+		if r.Exposure != nil {
+			r.sweepExposure(ctx, claim, r.Manager.Sandbox(ctx, claim))
+		}
 	}
 	r.pruneQuiet(claims)
 
@@ -171,7 +178,7 @@ func (r *Runner) sweepIdle(ctx context.Context, claim *k8s.Claim, instances map[
 		if sb != nil && !sb.Suspended && session.Derive(session.Facts{
 			HasSandbox: true, OperatingMode: sb.OperatingMode, Ready: sb.Ready, Suspended: sb.Suspended,
 		}) == session.StateReady {
-			in.Agent = r.pollAgent(ctx, agentCli, claim.Name, sb)
+			in.Agent = r.pollAgent(ctx, agentCli, claim.Name, r.statusTarget(claim, sb))
 		}
 		in.QuietSince = r.trackQuiet(claim.Name, in.Agent, now)
 	}
@@ -185,7 +192,7 @@ func (r *Runner) sweepIdle(ctx context.Context, claim *k8s.Claim, instances map[
 	// credentials the guard is skipped; the chart wires them by default.
 	var wakeAt *time.Time
 	if agentCli.Enabled() && agentCli.CronConfigured() {
-		nextFire, err := agentCli.NextCronFire(ctx, sb.ServiceFQDN)
+		nextFire, err := agentCli.NextCronFire(ctx, r.statusTarget(claim, sb))
 		if err != nil {
 			r.Log.Warn("cron schedule unreadable; deferring suspend", "session", claim.Name, "error", err)
 			return
@@ -214,8 +221,8 @@ func (r *Runner) sweepIdle(ctx context.Context, claim *k8s.Claim, instances map[
 }
 
 // pollAgent fetches one /api/status observation; nil = unknown (not idle).
-func (r *Runner) pollAgent(ctx context.Context, cli agent.Client, name string, sb *k8s.Sandbox) *agent.Report {
-	report, err := cli.Status(ctx, sb.ServiceFQDN)
+func (r *Runner) pollAgent(ctx context.Context, cli agent.Client, name, target string) *agent.Report {
+	report, err := cli.Status(ctx, target)
 	if err != nil {
 		r.Log.Warn("agent status poll failed", "session", name, "error", err)
 		return nil
