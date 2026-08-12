@@ -1,0 +1,60 @@
+# Auto chart bump on connector releases (#18): hermes-relay-connector's
+# release pipeline sends repository_dispatch {event_type: connector-release,
+# client_payload.version} after publishing an image (its release.yml). This
+# workflow updates the chart's default connector image tag and opens a
+# conventional-commit PR — CI (lint/render/e2e) gates it like any other
+# change, and the `fix(chart):` type feeds the release-please line (#17).
+#
+# BUMP_PR_TOKEN should be a PAT: PRs created with the default GITHUB_TOKEN
+# get no CI runs (same caveat as release-please). The fallback keeps the
+# workflow functional for testing — the PR just needs a manual close/reopen
+# to trigger checks.
+name: connector-bump
+
+on:
+  repository_dispatch:
+    types: [connector-release]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update default connector image tag
+        env:
+          VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          # The payload comes from our own release pipeline, but validate
+          # anyway — this string lands in a sed program and a branch name.
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'; then
+            echo "::error::client_payload.version is not a semver: '$VERSION'"
+            exit 1
+          fi
+          sed -i -E \
+            "s|(image: ghcr\.io/nabi-allenby/hermes-relay-connector:)[^[:space:]]+|\1${VERSION}|" \
+            charts/hermes-cluster/values.yaml
+          if git diff --quiet; then
+            echo "::notice::chart already defaults to connector ${VERSION}; nothing to do"
+          fi
+      - name: Open bump PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.BUMP_PR_TOKEN || github.token }}
+          branch: bot/connector-${{ github.event.client_payload.version }}
+          commit-message: "fix(chart): bump default connector image to ${{ github.event.client_payload.version }}"
+          title: "fix(chart): bump default connector image to ${{ github.event.client_payload.version }}"
+          labels: cd
+          body: |
+            Automated bump from the hermes-relay-connector release pipeline
+            (`repository_dispatch: connector-release`).
+
+            - Default `connector.image` → `ghcr.io/nabi-allenby/hermes-relay-connector:${{ github.event.client_payload.version }}`
+            - Release notes: https://github.com/nabi-allenby/hermes-relay-connector/releases/tag/v${{ github.event.client_payload.version }}
+
+            Per the connector pin's upgrade rule (docs/architecture.md):
+            re-read its HTTP API against `internal/connector` and rerun e2e
+            tier 2 before merging. Merging feeds the release-please line.
