@@ -95,30 +95,32 @@ spec:
           args:
             - sh
             - -c
-{{- if .Values.dashboard.enabled }}
-            # Dashboard mode: OIDC only. No platform-held credential exists
-            # for a user's agent — a shared basic-auth secret would be
-            # operator backdoor access, and a second session provider also
-            # breaks Hermes Desktop's native login (it auto-selects only
-            # when exactly ONE session provider is registered). Sessions
-            # not yet onboarded (no client_id in their home config.yaml)
-            # fall back to an EPHEMERAL in-container credential: generated
-            # per boot, held by no one, satisfying the bind guard without
-            # granting anyone access.
-            - |
-              if grep -qE '^[[:space:]]*client_id:[[:space:]]*["'"'"']?[A-Za-z0-9]' /opt/data/config.yaml 2>/dev/null; then
-                unset HERMES_DASHBOARD_BASIC_AUTH_USERNAME HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
-              else
-                export HERMES_DASHBOARD_BASIC_AUTH_USERNAME=ephemeral
-                export HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=$(head -c 32 /dev/urandom | base64 | tr -d '=+/')
-                unset HERMES_DASHBOARD_OIDC_ISSUER HERMES_DASHBOARD_OIDC_SCOPES
-              fi
-              exec hermes serve --host 0.0.0.0 --port {{ .Values.session.serve.port }}
-{{- else }}
             - exec hermes serve --host 0.0.0.0 --port {{ .Values.session.serve.port }}
-{{- end }}
           env:
-            {{- if not .Values.dashboard.enabled }}
+            {{- if .Values.dashboard.enabled }}
+            # Dashboard mode: OIDC only, single shared broker app (Auth0).
+            # No platform-held credential exists for a user's agent — a
+            # shared basic-auth secret would be operator backdoor access,
+            # and a second session provider breaks Hermes Desktop's native
+            # login (it auto-selects only with exactly ONE session
+            # provider). Every session uses the SAME client id, so it comes
+            # from a value here — per-session authorization lives in the
+            # broker's post-login Action, not in per-session app ids.
+            - name: HERMES_SESSION_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HERMES_DASHBOARD_OIDC_ISSUER
+              value: {{ .Values.dashboard.oidcIssuer | quote }}
+            - name: HERMES_DASHBOARD_OIDC_CLIENT_ID
+              value: {{ .Values.dashboard.oidcClientId | quote }}
+            - name: HERMES_DASHBOARD_OIDC_SCOPES
+              value: {{ .Values.dashboard.oidcScopes | quote }}
+            # Mandatory behind the ingress: redirect_uri derives from this,
+            # not from proxy headers (verified upstream).
+            - name: HERMES_DASHBOARD_PUBLIC_URL
+              value: "https://$(HERMES_SESSION_ID).{{ .Values.dashboard.domain }}"
+            {{- else }}
             # Non-dashboard installs: the chart-held basic credential is the
             # bind-guard auth provider and the lifecycle-manager's cron-read
             # login (Idle v2 cron guard).
@@ -128,31 +130,6 @@ spec:
             - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
-            {{- end }}
-            {{- if .Values.dashboard.enabled }}
-            # OIDC login for humans (issue #1). Client id and public URL
-            # derive in-pod from the pod name (== session id; the shared
-            # template carries no per-session values — the same invariant
-            # that keeps warm pools at 0).
-            - name: HERMES_SESSION_ID
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: HERMES_DASHBOARD_OIDC_ISSUER
-              value: {{ .Values.dashboard.oidcIssuer | quote }}
-            # The OIDC client id is deliberately NOT set here: env would
-            # shadow config.yaml (env-wins precedence upstream), and client
-            # ids are per-session values a shared template cannot carry —
-            # IdPs like Entra assign opaque GUIDs, so nothing derivable from
-            # the session name works. Each session's home config.yaml holds
-            # it instead (dashboard.oauth.self_hosted.client_id), written at
-            # provision time.
-            - name: HERMES_DASHBOARD_OIDC_SCOPES
-              value: {{ .Values.dashboard.oidcScopes | quote }}
-            # Mandatory behind the ingress: redirect_uri derives from this,
-            # not from proxy headers (verified upstream).
-            - name: HERMES_DASHBOARD_PUBLIC_URL
-              value: "https://$(HERMES_SESSION_ID).{{ .Values.dashboard.domain }}"
             {{- end }}
           ports:
             - containerPort: {{ .Values.session.serve.port }}

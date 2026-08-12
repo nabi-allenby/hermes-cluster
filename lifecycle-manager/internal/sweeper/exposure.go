@@ -14,11 +14,13 @@ import (
 	"github.com/nabi-allenby/hermes-cluster/lifecycle-manager/internal/k8s"
 )
 
-// dashboardIDPattern gates Ingress creation: only Discord-provisioned
-// sessions (s-dc-<snowflake>) have an Entra app registration, so only they
-// get a public hostname. API-created sessions (s-<random>) would announce a
-// client id with no matching app — login impossible by construction — so
-// they stay Service-only (PLAN T4, decided 2026-08-12).
+// dashboardIDPattern gates Ingress creation to Discord-provisioned
+// sessions (s-dc-<snowflake>). Only these map to a real person the broker
+// can authorize (the snowflake is the provisioning key and the join to the
+// broker's user); API-created sessions (s-<random>) are operator artifacts
+// with no owner, so they get no public hostname — Service-only. The broker
+// is single-app now (Auth0), so the gate is a deliberate exposure policy,
+// not a per-app-registration constraint.
 var dashboardIDPattern = regexp.MustCompile(`^s-dc-[0-9]+$`)
 
 // ExposureConfig is the sweeper's exposure policy. Nil disables everything.
