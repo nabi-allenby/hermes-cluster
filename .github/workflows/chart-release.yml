@@ -2,6 +2,13 @@
 # (chart releases are an independent line from lifecycle-manager v*
 # releases). Pull with:
 #   helm install hermes oci://ghcr.io/nabi-allenby/hermes-cluster/charts/hermes-cluster --version <x.y.z>
+#
+# Gate (#19): before anything lands on GHCR, the PACKAGED .tgz — the exact
+# artifact users install — is deployed on minikube (agent-sandbox installed,
+# Discord-less connector, dummy seed) and smoke-tested through the LM API:
+# create a connector-provisioned session, confirm connector reachability,
+# decommission. ci.yml's e2e runs against the working tree; this is the only
+# place the packaged chart itself is exercised.
 name: chart-release
 on:
   push:
@@ -16,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: lint + package + push
+      - name: lint + package
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -25,5 +32,71 @@ jobs:
             || { echo "Chart.yaml version does not match tag ${TAG}"; exit 1; }
           helm lint charts/hermes-cluster
           helm package charts/hermes-cluster
+          echo "CHART_TGZ=hermes-cluster-${version}.tgz" >> "$GITHUB_ENV"
+
+      - name: start minikube
+        uses: medyagh/setup-minikube@v0.0.19
+        with:
+          driver: docker
+      - name: install agent-sandbox
+        run: test/env/minikube-up.sh
+
+      - name: install the packaged chart (Discord-less)
+        run: |
+          # Dummy first-boot seed: session pods reference it, but the gate
+          # never waits for an agent to boot (session.image is busybox so a
+          # cold start can't pull the ~4GB agent image in CI).
+          kubectl create secret generic hermes-home-seed \
+            --from-literal=.env='PLACEHOLDER=1' \
+            --from-literal=auth.json='{}' \
+            --from-literal=config.yaml='' \
+            --from-literal=SOUL.md=''
+          helm install gate "./${CHART_TGZ}" \
+            --set connector.discordTokenSecret="" \
+            --set session.image=busybox:1.36 \
+            --set lifecycleManager.sweepInterval=15s
+          kubectl rollout status deploy/gate-relay-connector --timeout=180s
+          kubectl rollout status deploy/gate-lifecycle-manager --timeout=180s
+
+      - name: smoke the lifecycle-manager API
+        run: |
+          kubectl port-forward svc/gate-lifecycle-manager 18080:8080 >/dev/null 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf --max-time 2 http://127.0.0.1:18080/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+
+          # Create a connector-provisioned session: exercises the generated
+          # tokens Secret, the provision endpoint, wakeUrl registration, and
+          # claim creation through the packaged RBAC.
+          code="$(curl -s -o /tmp/create.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:18080/v1/sessions \
+            -H 'Content-Type: application/json' \
+            -d '{"id":"gate-1","connector":{}}')"
+          [ "$code" = "201" ] || { echo "create: HTTP $code"; cat /tmp/create.json; exit 1; }
+
+          # Connector reachable + the session visible with a connector view.
+          curl -sf http://127.0.0.1:18080/status | tee /tmp/status.json
+          grep -q '"reachable":true' /tmp/status.json \
+            || { echo "connector not reachable in /status"; exit 1; }
+          curl -sf http://127.0.0.1:18080/v1/sessions/gate-1 | grep -q '"provisioned":true' \
+            || { echo "session gate-1 not provisioned on the connector"; exit 1; }
+
+          # Decommission: the single destruction path, connector purge included.
+          code="$(curl -s -o /tmp/delete.json -w '%{http_code}' \
+            -X DELETE http://127.0.0.1:18080/v1/sessions/gate-1)"
+          [ "$code" = "200" ] || { echo "delete: HTTP $code"; cat /tmp/delete.json; exit 1; }
+          grep -q '"deprovisioned":true' /tmp/delete.json \
+            || { echo "delete did not deprovision"; cat /tmp/delete.json; exit 1; }
+          echo "packaged-chart smoke PASS"
+      - name: diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A || true
+          kubectl logs deploy/gate-lifecycle-manager --tail=50 || true
+          kubectl logs deploy/gate-relay-connector --tail=50 || true
+
+      - name: push to GHCR
+        run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
-          helm push "hermes-cluster-${version}.tgz" oci://ghcr.io/${{ github.repository }}/charts
+          helm push "${CHART_TGZ}" oci://ghcr.io/${{ github.repository }}/charts
