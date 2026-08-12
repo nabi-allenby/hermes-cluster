@@ -55,6 +55,12 @@ spec:
               valueFrom:
                 secretKeyRef: {name: {{ .Values.lifecycleManager.apiTokenSecret }}, key: token}
             {{- end }}
+            {{- if .Values.dashboard.enabled }}
+            # /dashboard slash command: per-session URL, {session} substituted
+            # by the connector. Matches the LM's per-session Ingress host.
+            - name: HRC_DASHBOARD_URL_TEMPLATE
+              value: "https://{session}.{{ .Values.dashboard.domain }}"
+            {{- end }}
             {{- end }}
           ports:
             - containerPort: 8420

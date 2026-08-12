@@ -16,6 +16,14 @@ rules:
   - apiGroups: ["agents.x-k8s.io"]
     resources: ["sandboxes"]
     verbs: ["get", "list", "watch", "patch"]
+  # Exposure (issue #11 / dashboard): per-session Services + Ingresses.
+  # Create-only by design — deletion is Kubernetes GC via ownerReferences.
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -87,16 +95,38 @@ spec:
               value: "true"
             - name: HLM_STATUS_PORT
               value: {{ .Values.session.serve.port | quote }}
+            {{- if not .Values.dashboard.enabled }}
+            # Cron-aware suspend needs the auth-gated cron read. Dashboard
+            # mode drops the shared credential entirely (operator decision:
+            # no platform-held access to user agents), so the cron guard is
+            # skipped — the LM handles absent credentials by design.
             - name: HLM_STATUS_BASIC_AUTH_USERNAME
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: username}
             - name: HLM_STATUS_BASIC_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
+            {{- end }}
             - name: HLM_IDLE_HORIZON
               value: {{ .Values.lifecycleManager.statusPoll.idleHorizon | quote }}
             - name: HLM_WAKE_BOOT_MARGIN
               value: {{ .Values.lifecycleManager.statusPoll.wakeBootMargin | quote }}
+            {{- end }}
+            {{- if .Values.session.serve.enabled }}
+            # Per-session Services: the status-poll target (agent-sandbox
+            # publishes status.selector but creates no Service — issue #11).
+            - name: HLM_EXPOSURE_ENABLED
+              value: "true"
+            {{- end }}
+            {{- if .Values.dashboard.enabled }}
+            - name: HLM_DASHBOARD_DOMAIN
+              value: {{ .Values.dashboard.domain | quote }}
+            - name: HLM_DASHBOARD_INGRESS_CLASS
+              value: {{ .Values.dashboard.ingressClassName | quote }}
+            - name: HLM_DASHBOARD_TLS_SECRET
+              value: {{ .Values.dashboard.tlsSecret | quote }}
+            - name: HLM_DASHBOARD_DENY_SERVICE
+              value: {{ .Release.Name }}-dashboard-deny
             {{- end }}
             {{- if .Values.lifecycleManager.apiTokenSecret }}
             - name: HLM_API_TOKEN

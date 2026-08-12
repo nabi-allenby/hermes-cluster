@@ -86,10 +86,9 @@ spec:
         # Serve container (issue #2): the same image running `hermes serve`
         # against the shared home. Its /api/status is the agent-reported
         # activity surface the lifecycle-manager's Idle v2 sweeper polls
-        # (public even when the auth gate is on); the cron schedule behind
-        # the gate is read with the basic-auth credential. Upstream refuses
-        # a non-loopback bind without an auth provider, so the credential is
-        # mandatory even though no human ever logs in with it.
+        # (public even when the auth gate is on). Upstream refuses a
+        # non-loopback bind without an auth provider — see the two auth
+        # modes below.
         - name: serve
           image: {{ .Values.session.image }}
           imagePullPolicy: {{ .Values.session.imagePullPolicy }}
@@ -98,12 +97,40 @@ spec:
             - -c
             - exec hermes serve --host 0.0.0.0 --port {{ .Values.session.serve.port }}
           env:
+            {{- if .Values.dashboard.enabled }}
+            # Dashboard mode: OIDC only, single shared broker app (Auth0).
+            # No platform-held credential exists for a user's agent — a
+            # shared basic-auth secret would be operator backdoor access,
+            # and a second session provider breaks Hermes Desktop's native
+            # login (it auto-selects only with exactly ONE session
+            # provider). Every session uses the SAME client id, so it comes
+            # from a value here — per-session authorization lives in the
+            # broker's post-login Action, not in per-session app ids.
+            - name: HERMES_SESSION_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HERMES_DASHBOARD_OIDC_ISSUER
+              value: {{ .Values.dashboard.oidcIssuer | quote }}
+            - name: HERMES_DASHBOARD_OIDC_CLIENT_ID
+              value: {{ .Values.dashboard.oidcClientId | quote }}
+            - name: HERMES_DASHBOARD_OIDC_SCOPES
+              value: {{ .Values.dashboard.oidcScopes | quote }}
+            # Mandatory behind the ingress: redirect_uri derives from this,
+            # not from proxy headers (verified upstream).
+            - name: HERMES_DASHBOARD_PUBLIC_URL
+              value: "https://$(HERMES_SESSION_ID).{{ .Values.dashboard.domain }}"
+            {{- else }}
+            # Non-dashboard installs: the chart-held basic credential is the
+            # bind-guard auth provider and the lifecycle-manager's cron-read
+            # login (Idle v2 cron guard).
             - name: HERMES_DASHBOARD_BASIC_AUTH_USERNAME
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: username}
             - name: HERMES_DASHBOARD_BASIC_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef: {name: {{ include "hc.dashboardAuthSecretName" . }}, key: password}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.session.serve.port }}
           volumeMounts:

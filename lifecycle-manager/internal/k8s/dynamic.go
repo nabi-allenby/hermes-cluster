@@ -31,6 +31,8 @@ type DynamicClient struct {
 	namespace string
 	claimGVR  schema.GroupVersionResource
 	sboxGVR   schema.GroupVersionResource
+	svcGVR    schema.GroupVersionResource
+	ingGVR    schema.GroupVersionResource
 	claimAPIV string
 }
 
@@ -65,6 +67,8 @@ func newWithInterface(dyn dynamic.Interface, opts Options) *DynamicClient {
 		namespace: opts.Namespace,
 		claimGVR:  schema.GroupVersionResource{Group: opts.ExtGroup, Version: opts.Version, Resource: resourceSandboxClaims},
 		sboxGVR:   schema.GroupVersionResource{Group: opts.Group, Version: opts.Version, Resource: resourceSandboxes},
+		svcGVR:    schema.GroupVersionResource{Version: "v1", Resource: resourceServices},
+		ingGVR:    schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: resourceIngresses},
 		claimAPIV: opts.ExtGroup + "/" + opts.Version,
 	}
 }

@@ -33,7 +33,7 @@ connector:
     limits: {cpu: 500m, memory: 256Mi}
 
 lifecycleManager:
-  image: ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager:0.3.0
+  image: ghcr.io/nabi-allenby/hermes-cluster/lifecycle-manager:0.4.0
   imagePullPolicy: IfNotPresent
   listenPort: 8080
   sweepInterval: 60s
@@ -102,6 +102,43 @@ session:
     resources:
       requests: {cpu: 25m, memory: 128Mi}
       limits: {cpu: 500m, memory: 512Mi}
+
+# Desktop/browserless dashboard access (issue #1): per-session hostnames
+# fronting each session's serve container, OIDC-gated by an external broker
+# (recommended: Auth0 with a Discord social connection + a post-login
+# Action for per-session authorization). The lifecycle-manager creates a
+# Service per session regardless (the Idle v2 status-poll target —
+# agent-sandbox creates none, issue #11); enabling this adds per-session
+# Ingresses, the OIDC env on the serve container, and the edge deny-list.
+dashboard:
+  enabled: false
+  # DNS zone for session hostnames: <session-id>.<domain>. A wildcard TLS
+  # cert for *.<domain> must already exist in tlsSecret (e.g. cert-manager
+  # DNS-01) — per-session issuance is deliberately not supported (ACME
+  # latency on every create; rate-limit exposure on churn).
+  domain: ""
+  tlsSecret: dashboard-wildcard-tls
+  ingressClassName: webapprouting.kubernetes.azure.com
+  # Namespace of the ingress controller pods (NetworkPolicy ingress source).
+  controllerNamespace: app-routing-system
+  # OIDC issuer the serve containers trust (upstream self-hosted plugin).
+  # Any conformant OIDC broker whose issuer is self-consistent (issuer ==
+  # the host serving authorize/token, matching {issuer}/.well-known/
+  # openid-configuration). Recommended broker: Auth0 (Discord as a social
+  # connection; a post-login Action enforces per-session authorization).
+  # The default Auth0 issuer https://<tenant>.<region>.auth0.com/ is
+  # self-consistent as-is.
+  oidcIssuer: ""
+  # Single OAuth client id, shared by ALL sessions. With a broker like
+  # Auth0 there is ONE application; per-session authorization is enforced
+  # by the broker's post-login Action (matching the authenticated user to
+  # the session host), NOT by per-session client ids. Public + PKCE client
+  # (no secret in pods).
+  oidcClientId: ""
+  # offline_access is NOT in upstream's default scope set, but without it
+  # most brokers never issue a refresh token — and silent re-auth in Hermes
+  # Desktop dies with an interactive prompt every ~1h.
+  oidcScopes: "openid profile email offline_access"
 
 networkPolicy:
   # Default-on. Requires a CNI that enforces NetworkPolicy (AKS: Azure CNI /

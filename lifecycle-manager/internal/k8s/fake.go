@@ -13,6 +13,7 @@ type Fake struct {
 	mu        sync.Mutex
 	claims    map[string]*Claim
 	sandboxes map[string]*Sandbox
+	exposures map[string]ExposureSpec
 	// CreateSandboxOnClaim makes CreateClaim immediately bind a Ready
 	// sandbox of the same name, mimicking a settled controller.
 	CreateSandboxOnClaim bool
@@ -26,6 +27,9 @@ func (f *Fake) init() {
 	}
 	if f.sandboxes == nil {
 		f.sandboxes = map[string]*Sandbox{}
+	}
+	if f.exposures == nil {
+		f.exposures = map[string]ExposureSpec{}
 	}
 }
 
@@ -187,6 +191,28 @@ func (f *Fake) PatchSandboxOperatingMode(_ context.Context, name, mode string) e
 	s.Ready = mode == "Running"
 	s.ReadyChanged = time.Now()
 	return nil
+}
+
+func (f *Fake) EnsureExposure(_ context.Context, spec ExposureSpec) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.init()
+	if f.Err != nil {
+		return f.Err
+	}
+	if _, ok := f.exposures[spec.SessionName]; !ok { // first write wins, like Create
+		f.exposures[spec.SessionName] = spec
+	}
+	return nil
+}
+
+// Exposure returns the recorded spec for a session, if any.
+func (f *Fake) Exposure(name string) (ExposureSpec, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.init()
+	s, ok := f.exposures[name]
+	return s, ok
 }
 
 func (f *Fake) Ping(context.Context) error {
