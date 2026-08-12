@@ -121,8 +121,21 @@ dashboard:
   # Namespace of the ingress controller pods (NetworkPolicy ingress source).
   controllerNamespace: app-routing-system
   # OIDC issuer the serve containers trust (upstream self-hosted plugin).
-  # Client id derives in-pod as hermes-<session-id>; per-user apps with
-  # that naming and assignment-required are the authorization model.
+  # The per-user OAuth client_id is NOT derived here — it is written to each
+  # session's home config.yaml (dashboard.oauth.self_hosted.client_id) by
+  # the operator/onboarding step, because IdPs like Entra assign opaque GUID
+  # app ids that nothing can derive from the session name. Per-user apps
+  # with assignment-required are the authorization model.
+  #
+  # ENTRA EXTERNAL ID GOTCHA: use the tenant's login.microsoftonline.com
+  # host, e.g. https://login.microsoftonline.com/<tenant-id>/v2.0 — NOT a
+  # *.ciamlogin.com host. The ciamlogin hosts advertise a canonical issuer
+  # that differs from the host serving the endpoints, so the flow mixes
+  # hosts and Entra drops its own user-context cookies across the federated
+  # (e.g. Discord) hop (AADSTS165000 / AADSTS50132). Only the
+  # login.microsoftonline.com form is self-consistent (issuer == authorize
+  # == token host), which both satisfies the plugin's issuer pinning and
+  # keeps the whole flow on one host.
   oidcIssuer: ""
   # offline_access is NOT in upstream's default scope set, but without it
   # most IdPs (Entra included) never issue a refresh token — and silent
