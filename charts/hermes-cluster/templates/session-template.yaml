@@ -120,8 +120,13 @@ spec:
                   fieldPath: metadata.name
             - name: HERMES_DASHBOARD_OIDC_ISSUER
               value: {{ .Values.dashboard.oidcIssuer | quote }}
-            - name: HERMES_DASHBOARD_OIDC_CLIENT_ID
-              value: "hermes-$(HERMES_SESSION_ID)"
+            # The OIDC client id is deliberately NOT set here: env would
+            # shadow config.yaml (env-wins precedence upstream), and client
+            # ids are per-session values a shared template cannot carry —
+            # IdPs like Entra assign opaque GUIDs, so nothing derivable from
+            # the session name works. Each session's home config.yaml holds
+            # it instead (dashboard.oauth.self_hosted.client_id), written at
+            # provision time.
             - name: HERMES_DASHBOARD_OIDC_SCOPES
               value: {{ .Values.dashboard.oidcScopes | quote }}
             # Mandatory behind the ingress: redirect_uri derives from this,
