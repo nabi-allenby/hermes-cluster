@@ -1,0 +1,29 @@
+# One release line for the platform (#17): release-please keeps a single
+# release PR open that bumps the lifecycle-manager version and the chart
+# version/appVersion/default-image together (linked-versions plugin —
+# they always release in lockstep, same version number). Merging it
+# creates BOTH tags:
+#   v<version>        → ci.yml image job (multi-arch LM image to GHCR)
+#   chart-v<version>  → chart-release.yml (OCI chart to GHCR)
+#
+# RELEASE_PLEASE_TOKEN must be a PAT (or GitHub App token): tags created
+# with the default GITHUB_TOKEN trigger no workflows, so a release merge
+# would produce neither the image nor the chart artifact. The github.token
+# fallback exists so the workflow degrades visibly, not silently.
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}

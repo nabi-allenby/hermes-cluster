@@ -8,7 +8,9 @@ description: >-
   prerequisite and install from the upstream release manifest (see README).
 type: application
 version: 0.7.1
-appVersion: "0.4.0"
+# appVersion tracks the lifecycle-manager release; the linked-versions
+# release-please plugin keeps it in lockstep with the chart version.
+appVersion: "0.4.0" # x-release-please-version
 keywords: [hermes, agents, discord, agent-sandbox, scale-to-zero]
 sources:
   - https://github.com/nabi-allenby/hermes-cluster
