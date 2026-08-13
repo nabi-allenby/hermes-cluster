@@ -1,0 +1,9 @@
+# Q4 evidence: a claim against the replicas:1 pool adopts the pre-warmed
+# spare, whose pod name is <pool>-<suffix> != claim name.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxClaim
+metadata:
+  name: s-dc-777001
+spec:
+  warmPoolRef:
+    name: t01-pool-warm

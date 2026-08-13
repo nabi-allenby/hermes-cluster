@@ -1,0 +1,9 @@
+# Cold-start claim: claim name == sandbox name == pod name (the identity the
+# gatewayId check depends on). Named like a real session id.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxClaim
+metadata:
+  name: s-dc-843921
+spec:
+  warmPoolRef:
+    name: t01-pool
